@@ -4,8 +4,8 @@ import { GameUI } from './components/GameUI';
 import { Friend, GameState } from './types';  
 import { playPositiveEffect, playNegativeEffect } from './utils/effects';  
   
-const GAME_DURATION = 60;  
-const BUBBLE_SPAWN_INTERVAL = 5000;  
+const GAME_DURATION = 60;
+const BUBBLE_SPAWN_INTERVAL = 5000; 
   
 const friends: Friend[] = [  
   { id: 1, name: 'Ami 1', imageUrl: '/WatthieuGame/public/images/Alix.png', points: 15 },  
@@ -22,18 +22,13 @@ const friends: Friend[] = [
   { id: 12, name: 'Ami 12', imageUrl: '/WatthieuGame/public/images/Steevens.png', points: -30 },  
 ];  
   
-interface PositionedFriend extends Friend {  
-  x: number;  
-  y: number;  
-}  
-  
 function App() {  
   const [gameState, setGameState] = useState<GameState>({  
     score: 0,  
     timeLeft: GAME_DURATION,  
     isPlaying: false,  
   });  
-  const [bubbles, setBubbles] = useState<PositionedFriend[]>([]);  
+  const [bubbles, setBubbles] = useState<Friend[]>([]);  
   
   const startGame = () => {  
     setGameState({  
@@ -41,21 +36,7 @@ function App() {
       timeLeft: GAME_DURATION,  
       isPlaying: true,  
     });  
-    generateInitialBubbles();  
-  };  
-  
-  const generateRandomPosition = () => {  
-    const x = Math.random() * (window.innerWidth - 100);  
-    const y = Math.random() * (window.innerHeight - 100);  
-    return { x, y };  
-  };  
-  
-  const generateInitialBubbles = () => {  
-    const initialBubbles = friends.map((friend) => {  
-      const { x, y } = generateRandomPosition();  
-      return { ...friend, x, y };  
-    });  
-    setBubbles(initialBubbles);  
+    setBubbles([]);  
   };  
   
   useEffect(() => {  
@@ -78,41 +59,27 @@ function App() {
     if (!gameState.isPlaying) return;  
   
     const spawnBubbles = () => {  
-      setBubbles((prevBubbles) => {  
-        const newBubbles = friends.map((friend) => {  
-          if (prevBubbles.find((bubble) => bubble.id === friend.id)) {  
-            return prevBubbles.find((bubble) => bubble.id === friend.id)!;  
-          }  
-          const { x, y } = generateRandomPosition();  
-          return { ...friend, x, y };  
-        });  
-        return newBubbles;  
-      });  
+      setBubbles([...friends]);
     };  
   
-    spawnBubbles();  
+    spawnBubbles();
     const interval = setInterval(spawnBubbles, BUBBLE_SPAWN_INTERVAL);  
-  
     return () => clearInterval(interval);  
   }, [gameState.isPlaying]);  
   
-  const handlePop = (id: number) => {  
-    const poppedBubble = bubbles.find((bubble) => bubble.id === id);  
-    if (poppedBubble) {  
-      const points = poppedBubble.points;  
-      if (points > 0) {  
-        playPositiveEffect(points);  
-      } else {  
-        playNegativeEffect();  
-      }  
-  
-      setGameState((prev) => ({  
-        ...prev,  
-        score: prev.score + points,  
-      }));  
-  
-      setBubbles((prev) => prev.filter((bubble) => bubble.id !== id));  
+  const handlePop = (points: number) => {  
+    if (points > 0) {  
+      playPositiveEffect(points);  
+    } else {  
+      playNegativeEffect();  
     }  
+  
+    setGameState((prev) => ({  
+      ...prev,  
+      score: prev.score + points,  
+    }));  
+  
+    setBubbles((prev) => prev.filter((bubble) => bubble.points !== points));  
   };  
   
   return (  
@@ -139,8 +106,8 @@ function App() {
       {gameState.isPlaying && (  
         <>  
           <GameUI score={gameState.score} timeLeft={gameState.timeLeft} />  
-          {bubbles.map((friend) => (  
-            <Bubble key={friend.id} friend={friend} onPop={() => handlePop(friend.id)} />  
+          {bubbles.map((friend, index) => (  
+            <Bubble key={`${friend.id}-${index}`} friend={friend} onPop={handlePop} />  
           ))}  
         </>  
       )}  
