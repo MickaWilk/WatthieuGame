@@ -26,23 +26,33 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop }) => {
     : 'from-red-300 via-red-500 to-red-700';
     
   const pointsColor = friend.points >= 0 ? 'bg-green-500' : 'bg-red-500';
-
   const keyframesStyle = `
-    @keyframes ${animationName} {
-      0%, 100% {
-        transform: translate(0, 0);
-      }
-      25% {
-        transform: translate(${position.xAmplitude * 0.5}px, ${-position.yAmplitude * 0.7}px);
-      }
-      50% {
-        transform: translate(${-position.xAmplitude * 0.3}px, ${-position.yAmplitude}px);
-      }
-      75% {
-        transform: translate(${-position.xAmplitude}px, ${-position.yAmplitude * 0.5}px);
-      }
+  @keyframes ${animationName} {
+    0%, 100% {
+      transform: translate(0, 0);
     }
-  `;
+    25% {
+      transform: translate(${position.xAmplitude * 0.5 * position.startDirectionX}px, 
+                           ${-position.yAmplitude * 0.7 * position.startDirectionY}px);
+    }
+    50% {
+      transform: translate(${-position.xAmplitude * 0.3 * position.startDirectionX}px, 
+                           ${-position.yAmplitude * position.startDirectionY}px);
+    }
+    75% {
+      transform: translate(${-position.xAmplitude * position.startDirectionX}px, 
+                           ${-position.yAmplitude * 0.5 * position.startDirectionY}px);
+    }
+    85% {
+      transform: translate(${position.xAmplitude * 0.3 * position.startDirectionX}px, 
+                           ${position.yAmplitude * 0.3 * position.startDirectionY}px); 
+    }
+    95% {
+      transform: translate(${position.xAmplitude * 0.15 * position.startDirectionX}px, 
+                           ${position.yAmplitude * 0.15 * position.startDirectionY}px); 
+    }
+  }
+`;
 
   return (
     <>
