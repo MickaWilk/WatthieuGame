@@ -5,6 +5,7 @@ export interface Friend {
   points: number;
 }
 
+
 export interface GameState {
   score: number;
   timeLeft: number;
@@ -16,4 +17,7 @@ export interface BubblePosition {
   y: number;
   size: number;
   speed: number;
+  delay: number;
+  xAmplitude: number;
+  yAmplitude: number;
 }
