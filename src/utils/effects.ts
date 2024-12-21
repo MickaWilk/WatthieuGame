@@ -37,3 +37,23 @@ export const playNegativeEffect = () => {
 
   frame();
 };
+
+const createCustomExplosion = (x: number, y: number, colors: string[], particleCount: number) => {
+  confetti({
+    particleCount,
+    startVelocity: 20,
+    spread: 360,
+    origin: { 
+      x: x / window.innerWidth,
+      y: y / window.innerHeight
+    },
+    colors,
+    ticks: 200
+  });
+};
+
+export const playBubbleEffect = (points: number, x: number, y: number) => {
+  const colors = points > 0 ? POSITIVE_COLORS : NEGATIVE_COLORS;
+  const particleCount = Math.abs(points) * 2;
+  createCustomExplosion(x, y, colors, particleCount);
+};

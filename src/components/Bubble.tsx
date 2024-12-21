@@ -1,45 +1,77 @@
-import React from 'react';
-import { Friend } from '../types';
-import { getBubbleStyles } from '../utils/styles';
+import React, { useMemo } from 'react';
+import { Friend, BubblePosition } from '../types';
+import { playBubbleEffect } from '../utils/effects';
 
 interface BubbleProps {
   friend: Friend;
+  position: BubblePosition;
   onPop: (points: number) => void;
 }
 
-export const Bubble: React.FC<BubbleProps> = ({ friend, onPop }) => {
-  const randomPosition = () => {
-    const x = Math.random() * (window.innerWidth - 100);
-    const y = Math.random() * (window.innerHeight - 100);
-    return { x, y };
+export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop }) => {
+  const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const audio = new Audio(friend.soundUrl);
+    audio.volume = 0.5;
+    audio.play().catch(e => console.log('Audio play failed:', e));
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    playBubbleEffect(friend.points, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    onPop(friend.points);
   };
 
-  const { x, y } = randomPosition();
-  const size = Math.random() * (100 - 50) + 50;
-  const speed = Math.random() * (8 - 3) + 3;
-  const { borderColor, glowEffect, scoreClass } = getBubbleStyles(friend.points);
+  const animationName = useMemo(() => `float-${Math.random().toString(36).substr(2, 9)}`, []);
+  
+  const gradientColors = friend.points >= 0
+    ? 'from-green-300 via-green-500 to-green-700'
+    : 'from-red-300 via-red-500 to-red-700';
+    
+  const pointsColor = friend.points >= 0 ? 'bg-green-500' : 'bg-red-500';
+
+  const keyframesStyle = `
+    @keyframes ${animationName} {
+      0%, 100% {
+        transform: translate(0, 0);
+      }
+      25% {
+        transform: translate(${position.xAmplitude * 0.5}px, ${-position.yAmplitude * 0.7}px);
+      }
+      50% {
+        transform: translate(${-position.xAmplitude * 0.3}px, ${-position.yAmplitude}px);
+      }
+      75% {
+        transform: translate(${-position.xAmplitude}px, ${-position.yAmplitude * 0.5}px);
+      }
+    }
+  `;
 
   return (
-    <div
-      className={`absolute rounded-full cursor-pointer transition-transform hover:scale-105 border-4 ${borderColor}`}
-      style={{
-        left: x,
-        top: y,
-        width: size,
-        height: size,
-        animation: `float ${speed}s infinite alternate ease-in-out`,
-        boxShadow: glowEffect,
-      }}
-      onClick={() => onPop(friend.points)}
-    >
-      <img
-        src={friend.imageUrl}
-        alt={friend.name}
-        className="w-full h-full rounded-full object-cover"
-      />
-      <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${scoreClass}`}>
-        {friend.points > 0 ? '+' : ''}{friend.points}
+    <>
+      <style>{keyframesStyle}</style>
+      <div
+        className="bubble absolute cursor-pointer"
+        style={{
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          width: `${position.size}px`,
+          height: `${position.size}px`,
+          animation: `${animationName} ${position.speed}s ease-in-out infinite`,
+          animationDelay: `${position.delay}s`,
+          transition: 'transform 0.3s ease-in-out',
+        }}
+        onClick={handleClick}
+      >
+        <div className={`w-full h-full rounded-full p-1 bg-gradient-to-br ${gradientColors}`}>
+          <div className={`absolute -top-2 -right-2 ${pointsColor} text-white rounded-full px-2 py-1 text-sm font-bold shadow-lg z-10`}>
+            {friend.points > 0 ? `+${friend.points}` : friend.points}
+          </div>
+          <img
+            src={friend.imageUrl}
+            alt={friend.name}
+            className="w-full h-full rounded-full object-cover"
+            draggable={false}
+          />
+        </div>
       </div>
-    </div>
+    </>
   );
 };
