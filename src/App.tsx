@@ -9,7 +9,7 @@ const GAME_DURATION = 60;
 const BUBBLE_SPAWN_INTERVAL = 3000;
 
 // Générer la liste des URLs de sons disponibles
-const SOUND_URLS = Array.from({ length: 19 }, (_, i) => `${import.meta.env.BASE_URL}sounds/${i + 1}.mp3`);
+const SOUND_URLS = Array.from({ length: 29 }, (_, i) => `${import.meta.env.BASE_URL}sounds/${i + 1}.mp3`);
 
 const friends: Friend[] = [
   { id: 1, name: 'Alix', imageUrl: `${import.meta.env.BASE_URL}images/Alix.png`, points: 15 },
