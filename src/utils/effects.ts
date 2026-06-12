@@ -3,6 +3,18 @@ import confetti from 'canvas-confetti';
 const POSITIVE_COLORS = ['#00ff00', '#26ff00', '#73ff00', '#9eff00'];
 const NEGATIVE_COLORS = ['#ff0000', '#ff5500', '#ff8800'];
 
+// Singleton AudioContext - évite la création de centaines de contextes
+let _ctx: AudioContext | null = null;
+const getCtx = (): AudioContext => {
+  if (!_ctx || _ctx.state === 'closed') {
+    _ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+  if (_ctx.state === 'suspended') {
+    _ctx.resume();
+  }
+  return _ctx;
+};
+
 const createExplosion = (angle: number, origin: { x: number }) => {
   confetti({
     particleCount: 7,
@@ -59,103 +71,110 @@ export const playBubbleEffect = (points: number, x: number, y: number) => {
 };
 
 export const playTickSound = () => {
-  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.type = 'square';
-  osc.frequency.value = 880;
-  gain.gain.setValueAtTime(0.15, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-  osc.start(ctx.currentTime);
-  osc.stop(ctx.currentTime + 0.08);
-};
-
-export const playComboSound = () => {
-  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-  const freqs = [600, 800, 1000, 1400];
-  freqs.forEach((freq, i) => {
+  try {
+    const ctx = getCtx();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-    const t = ctx.currentTime + i * 0.07;
-    gain.gain.setValueAtTime(0.3, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    osc.type = 'square';
+    osc.frequency.value = 880;
+    const t = ctx.currentTime;
+    gain.gain.setValueAtTime(0.15, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
     osc.start(t);
-    osc.stop(t + 0.25);
-  });
+    osc.stop(t + 0.08);
+  } catch (_) { /* audio non bloquant */ }
+};
+
+export const playComboSound = (variant: 'positive' | 'negative' | 'mixed' = 'positive') => {
+  try {
+    const ctx = getCtx();
+    const freqSets = {
+      positive: [600, 800, 1000, 1400],
+      negative: [400, 300, 250, 180],
+      mixed:    [500, 600, 550, 700],
+    };
+    freqSets[variant].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = variant === 'negative' ? 'sawtooth' : 'sine';
+      osc.frequency.value = freq;
+      const t = ctx.currentTime + i * 0.07;
+      gain.gain.setValueAtTime(0.3, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.start(t);
+      osc.stop(t + 0.25);
+    });
+  } catch (_) { /* audio non bloquant */ }
 };
 
 export const playMilestoneSound = (level: number) => {
-  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  try {
+    const ctx = getCtx();
+    const now = ctx.currentTime;
 
-  if (level >= 7) {
-    // GODLIKE - fanfare épique 6 notes + accord final
-    const fanfare = [523, 659, 784, 1047, 1319, 1568];
-    fanfare.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sawtooth';
-      osc.frequency.value = freq;
-      const t = ctx.currentTime + i * 0.07;
-      gain.gain.setValueAtTime(0.18, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
-      osc.start(t);
-      osc.stop(t + 0.6);
-    });
-    // accord final
-    [523, 784, 1047, 1568].forEach((freq) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      const t = ctx.currentTime + 0.55;
-      gain.gain.setValueAtTime(0.12, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
-      osc.start(t);
-      osc.stop(t + 0.8);
-    });
-  } else if (level >= 5) {
-    // Epic - arpège 5 notes montantes rapides
-    const freqs = [523, 659, 784, 1047, 1319];
-    freqs.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'triangle';
-      osc.frequency.value = freq + (level * 25);
-      const t = ctx.currentTime + i * 0.09;
-      gain.gain.setValueAtTime(0.25, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-      osc.start(t);
-      osc.stop(t + 0.4);
-    });
-  } else {
-    const freqs = [523, 659, 784, 1047];
-    const baseDelay = level * 0.05;
-    freqs.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'triangle';
-      osc.frequency.value = freq + (level * 30);
-      const t = ctx.currentTime + i * (0.12 - baseDelay);
-      gain.gain.setValueAtTime(0.25, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-      osc.start(t);
-      osc.stop(t + 0.3);
-    });
-  }
+    if (level >= 7) {
+      const fanfare = [523, 659, 784, 1047, 1319, 1568];
+      fanfare.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+        const t = now + i * 0.07;
+        gain.gain.setValueAtTime(0.18, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+        osc.start(t);
+        osc.stop(t + 0.6);
+      });
+      [523, 784, 1047, 1568].forEach((freq) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        const t = now + 0.55;
+        gain.gain.setValueAtTime(0.12, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+        osc.start(t);
+        osc.stop(t + 0.8);
+      });
+    } else if (level >= 5) {
+      [523, 659, 784, 1047, 1319].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.value = freq + level * 25;
+        const t = now + i * 0.09;
+        gain.gain.setValueAtTime(0.25, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+        osc.start(t);
+        osc.stop(t + 0.4);
+      });
+    } else {
+      // intervalle fixe 0.1s, plus de calcul qui peut devenir négatif
+      [523, 659, 784, 1047].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.value = freq + level * 30;
+        const t = now + i * 0.1;
+        gain.gain.setValueAtTime(0.25, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+        osc.start(t);
+        osc.stop(t + 0.3);
+      });
+    }
+  } catch (_) { /* audio non bloquant */ }
 };
 
 export const playMilestoneConfetti = (level: number) => {

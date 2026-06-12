@@ -3,6 +3,25 @@ import { Bubble } from './components/Bubble';
 import { GameUI } from './components/GameUI';
 import { Friend, GameState, BubblePosition } from './types';
 import { playPositiveEffect, playNegativeEffect, playTickSound, playComboSound, playMilestoneSound, playMilestoneConfetti } from './utils/effects';
+
+type ComboVariant = 'positive' | 'negative' | 'mixed';
+
+const getComboMessage = (poppedPoints: number[]): { text: string; variant: ComboVariant } => {
+  const total = poppedPoints.reduce((a, b) => a + b, 0);
+  const allPos = poppedPoints.every(p => p > 0);
+  const allNeg = poppedPoints.every(p => p < 0);
+
+  if (allPos && total >= 60)  return { text: 'TRIFORCE LÉGENDAIRE ! 🏆🔥', variant: 'positive' };
+  if (allPos && total >= 30)  return { text: 'COMBO PARFAIT ! ⭐⭐⭐', variant: 'positive' };
+  if (allPos)                 return { text: 'Propre ! 💪', variant: 'positive' };
+  if (allNeg && total <= -50) return { text: 'COMPLÈTEMENT ÉCLATÉ AU SOL. 💀💀', variant: 'negative' };
+  if (allNeg && total <= -20) return { text: "T'as fait exprès ou quoi ? 💀", variant: 'negative' };
+  if (allNeg)                 return { text: 'Vraiment ? 🤦', variant: 'negative' };
+  if (total >= 30)            return { text: 'Bien joué ! 🔥', variant: 'positive' };
+  if (total >= 0)             return { text: 'Combo correct ! 😎', variant: 'mixed' };
+  if (total < -20)            return { text: "C'était pas la bonne idée... 😬", variant: 'negative' };
+  return { text: 'Combo raté de peu 😅', variant: 'mixed' };
+};
 import { generateBubblePosition } from './utils/bubbleUtils';
 
 const GAME_DURATION = 60;
@@ -75,13 +94,14 @@ function App() {
   });
   const [bubbles, setBubbles] = useState<BubbleWithPosition[]>([]);
   const [sessionBest, setSessionBest] = useState<number | null>(null);
-  const [comboMessage, setComboMessage] = useState<string | null>(null);
+  const [comboMessage, setComboMessage] = useState<{ text: string; variant: ComboVariant } | null>(null);
   const [milestoneToast, setMilestoneToast] = useState<{ message: string; level: number } | null>(null);
 
   const isPlayingRef = useRef(false);
   const rosterRef = useRef<Friend[]>(friends);
-  const recentPopsRef = useRef<number[]>([]);
+  const recentPopsRef = useRef<Array<{ time: number; points: number }>>([]);
   const comboGenRef = useRef(0);
+  const lastComboTimeRef = useRef(0); // cooldown 3s entre combos
   const currentScoreRef = useRef(0);
 
   useEffect(() => {
@@ -92,16 +112,18 @@ function App() {
     currentScoreRef.current = gameState.score;
   }, [gameState.score]);
 
-  const showComboFeedback = () => {
-    setComboMessage('COMBO ! 🔥');
-    playComboSound();
-    setTimeout(() => setComboMessage(null), 1500);
+  const showComboFeedback = (points: number[]) => {
+    const { text, variant } = getComboMessage(points);
+    setComboMessage({ text, variant });
+    playComboSound(variant);
+    setTimeout(() => setComboMessage(null), 1800);
   };
 
   const startGame = () => {
     rosterRef.current = shuffleFriendPoints();
     recentPopsRef.current = [];
     comboGenRef.current = 0;
+    lastComboTimeRef.current = 0;
     currentScoreRef.current = 0;
     const initialBubbles = generateBubbles(rosterRef.current);
     setBubbles(initialBubbles);
@@ -159,17 +181,23 @@ function App() {
 
     setBubbles((prev) => prev.filter((b) => b.id !== id));
 
-    // Gestion combo 3 bulles en 2 secondes
+    // Gestion combo 3 bulles en 2 secondes (cooldown 3s entre combos)
     const now = Date.now();
-    recentPopsRef.current = [...recentPopsRef.current.filter(t => now - t < 2000), now];
+    const cooldownOk = now - lastComboTimeRef.current > 3000;
+    recentPopsRef.current = [
+      ...recentPopsRef.current.filter(p => now - p.time < 2000),
+      { time: now, points },
+    ];
 
-    if (recentPopsRef.current.length >= 3) {
+    if (cooldownOk && recentPopsRef.current.length >= 3) {
+      const comboPoints = recentPopsRef.current.slice(-3).map(p => p.points);
       recentPopsRef.current = [];
+      lastComboTimeRef.current = now;
       comboGenRef.current += 1;
       const newRoster = shuffleFriendPoints();
       rosterRef.current = newRoster;
       setBubbles(generateBubbles(newRoster));
-      showComboFeedback();
+      showComboFeedback(comboPoints);
       return;
     }
 
@@ -249,8 +277,12 @@ function App() {
       {/* Overlay combo */}
       {comboMessage && (
         <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50">
-          <div className="text-5xl font-extrabold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent animate-bounce">
-            {comboMessage}
+          <div className={`text-4xl font-extrabold animate-bounce px-6 py-3 rounded-2xl shadow-2xl bg-clip-text text-transparent bg-gradient-to-r ${
+            comboMessage.variant === 'positive' ? 'from-yellow-300 to-orange-500' :
+            comboMessage.variant === 'negative' ? 'from-red-400 to-pink-600' :
+            'from-blue-300 to-purple-400'
+          }`}>
+            {comboMessage.text}
           </div>
         </div>
       )}
