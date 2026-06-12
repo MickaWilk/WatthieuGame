@@ -1,19 +1,24 @@
-import React, { useMemo } from 'react';
-import { Friend, BubblePosition } from '../types';
+import React, { useMemo, useState } from 'react';
+import { BubbleData } from '../types';
 import { playBubbleEffect } from '../utils/effects';
 import { getBubbleStyles } from '../utils/styles';
 
 interface BubbleProps {
-  friend: Friend;
-  position: BubblePosition;
+  friend: BubbleData;
+  position: BubbleData['position'];
   onPop: (id: number, points: number) => void;
+  muted: boolean;
 }
 
-export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop }) => {
+export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, muted }) => {
+  const [hovered, setHovered] = useState(false);
+
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    const audio = new Audio(friend.soundUrl);
-    audio.volume = 0.5;
-    audio.play().catch(e => console.log('Audio play failed:', e));
+    if (!muted) {
+      const audio = new Audio(friend.soundUrl);
+      audio.volume = 0.5;
+      audio.play().catch(e => console.log('Audio play failed:', e));
+    }
 
     const rect = event.currentTarget.getBoundingClientRect();
     playBubbleEffect(friend.points, rect.left + rect.width / 2, rect.top + rect.height / 2);
@@ -59,30 +64,51 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop }) => {
   return (
     <>
       <style>{keyframesStyle}</style>
+      {/* Wrapper externe : gère le scale hover, séparé de l'animation float */}
       <div
-        className="bubble absolute cursor-pointer"
         style={{
+          position: 'absolute',
           left: `${position.x}px`,
           top: `${position.y}px`,
           width: `${position.size}px`,
           height: `${position.size}px`,
-          animation: `${animationName} ${position.speed}s ease-in-out infinite`,
-          animationDelay: `${position.delay}s`,
-          transition: 'transform 0.3s ease-in-out',
-          filter: glowEffect,
+          transform: hovered ? 'scale(1.1)' : 'scale(1)',
+          transition: 'transform 0.15s ease',
         }}
-        onClick={handleClick}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
       >
-        <div className={`w-full h-full rounded-full p-1 bg-gradient-to-br ${gradientColors} ring-2 ring-white/30`}>
-          <div className={`absolute -top-2 -right-2 ${scoreClass} text-white rounded-full px-2 py-1 text-sm font-bold shadow-lg z-10`}>
-            {friend.points > 0 ? `+${friend.points}` : friend.points}
+        <div
+          className="bubble absolute cursor-pointer"
+          style={{
+            left: 0,
+            top: 0,
+            width: `${position.size}px`,
+            height: `${position.size}px`,
+            animation: `${animationName} ${position.speed}s ease-in-out infinite`,
+            animationDelay: `${position.delay}s`,
+            filter: glowEffect,
+          }}
+          onClick={handleClick}
+        >
+          <div className={`w-full h-full rounded-full p-1 bg-gradient-to-br ${gradientColors} ring-2 ring-white/30`}>
+            <div className={`absolute -top-2 -right-2 ${scoreClass} text-white rounded-full px-2 py-1 text-sm font-bold shadow-lg z-10`}>
+              {friend.points > 0 ? `+${friend.points}` : friend.points}
+            </div>
+            <img
+              src={friend.imageUrl}
+              alt={friend.name}
+              className="w-full h-full rounded-full object-cover"
+              draggable={false}
+            />
           </div>
-          <img
-            src={friend.imageUrl}
-            alt={friend.name}
-            className="w-full h-full rounded-full object-cover"
-            draggable={false}
-          />
+          {/* Nom visible en bas de la bulle */}
+          <div
+            className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-semibold text-white whitespace-nowrap"
+            style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}
+          >
+            {friend.name}
+          </div>
         </div>
       </div>
     </>

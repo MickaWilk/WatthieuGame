@@ -21,9 +21,6 @@
   }
 }
 
-.bubble:hover {
-  transform: scale(1.1);
-}
 
 @keyframes milestone-glow {
   0%, 100% { box-shadow: 0 0 15px rgba(255, 100, 200, 0.7), 0 0 30px rgba(150, 0, 255, 0.4); }

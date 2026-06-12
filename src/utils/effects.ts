@@ -204,3 +204,62 @@ export const playMilestoneConfetti = (level: number) => {
     }), 200);
   }
 };
+
+export interface AmbientMusic {
+  setVolume: (v: number) => void;
+  stop: () => void;
+}
+
+export const createAmbientMusic = (type: 'home' | 'game'): AmbientMusic | null => {
+  try {
+    const ctx = getCtx();
+    const masterGain = ctx.createGain();
+    masterGain.gain.value = type === 'home' ? 0.12 : 0.10;
+    masterGain.connect(ctx.destination);
+
+    // Fréquences : home = ambiance douce, game = plus dynamique
+    const freqs = type === 'home'
+      ? [110, 138.6, 165, 220]   // La2, Ré3b, Mi3, La3 (accord mineur)
+      : [130.8, 164.8, 196, 261.6]; // Do3, Mi3, Sol3, Do4 (accord majeur)
+
+    const oscillators: OscillatorNode[] = [];
+    const oscGains: GainNode[] = [];
+
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const oscGain = ctx.createGain();
+      osc.connect(oscGain);
+      oscGain.connect(masterGain);
+      osc.type = i === 0 ? 'sine' : i === 1 ? 'triangle' : 'sine';
+      osc.frequency.value = freq;
+      oscGain.gain.value = i === 0 ? 0.5 : 0.2 / freqs.length;
+      osc.start();
+      oscillators.push(osc);
+      oscGains.push(oscGain);
+    });
+
+    // LFO lent pour un effet de respiration (tremolo)
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.connect(lfoGain);
+    lfoGain.connect(masterGain.gain);
+    lfo.frequency.value = 0.15; // 0.15 Hz = cycle de ~6.7s
+    lfoGain.gain.value = 0.03;
+    lfo.start();
+
+    return {
+      setVolume: (v: number) => {
+        masterGain.gain.setTargetAtTime(v, ctx.currentTime, 0.1);
+      },
+      stop: () => {
+        masterGain.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+        setTimeout(() => {
+          try { lfo.stop(); } catch (_) {}
+          oscillators.forEach(o => { try { o.stop(); } catch (_) {} });
+        }, 1000);
+      }
+    };
+  } catch (_) {
+    return null;
+  }
+};

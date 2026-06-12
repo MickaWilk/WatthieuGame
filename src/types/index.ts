@@ -5,6 +5,10 @@ export interface Friend {
   points: number;
 }
 
+export interface BubbleData extends Friend {
+  soundUrl: string;
+  position: BubblePosition;
+}
 
 export interface GameState {
   score: number;
