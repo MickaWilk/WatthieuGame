@@ -32,9 +32,15 @@ interface BubbleWithPosition extends Friend {
 // Fonction pour choisir un son aléatoire
 const getRandomSound = () => SOUND_URLS[Math.floor(Math.random() * SOUND_URLS.length)];
 
-// Fonction pour générer toutes les bulles avec des positions et sons aléatoires
-const generateAllBubbles = (): BubbleWithPosition[] => {
-  return friends.map((friend) => ({
+// Shuffle les valeurs de points entre les amis pour varier les rôles à chaque partie
+const shuffleFriendPoints = (): Friend[] => {
+  const pointValues = friends.map(f => f.points);
+  const shuffled = [...pointValues].sort(() => Math.random() - 0.5);
+  return friends.map((friend, i) => ({ ...friend, points: shuffled[i] }));
+};
+
+const generateBubbles = (roster: Friend[]): BubbleWithPosition[] => {
+  return roster.map((friend) => ({
     ...friend,
     soundUrl: getRandomSound(),
     position: generateBubblePosition(),
@@ -52,6 +58,8 @@ function App() {
 
   // Ref pour accéder à isPlaying sans stale closure dans les setTimeout
   const isPlayingRef = useRef(false);
+  // Roster shufflé pour la partie en cours - stable pendant toute la partie
+  const rosterRef = useRef<Friend[]>(friends);
 
   // Synchroniser le ref avec l'état
   useEffect(() => {
@@ -60,7 +68,8 @@ function App() {
 
   // Fonction pour démarrer le jeu
   const startGame = () => {
-    const initialBubbles = generateAllBubbles();
+    rosterRef.current = shuffleFriendPoints();
+    const initialBubbles = generateBubbles(rosterRef.current);
     setBubbles(initialBubbles);
     setGameState({
       score: 0,
@@ -104,10 +113,10 @@ function App() {
     // Retirer la bulle poppée
     setBubbles((prev) => prev.filter((b) => b.id !== id));
 
-    // Respawn après 2s avec nouvelle position
+    // Respawn après 2s avec nouvelle position, même rôle (points shufflés en début de partie)
     setTimeout(() => {
       if (!isPlayingRef.current) return;
-      const friend = friends.find((f) => f.id === id);
+      const friend = rosterRef.current.find((f) => f.id === id);
       if (!friend) return;
       setBubbles((prev) => [
         ...prev,
