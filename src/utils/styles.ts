@@ -19,9 +19,9 @@ const getBorderColor = (points: number): string => {
 
 const getGlowEffect = (points: number): string => {
   if (points > 0) {
-    return `0 0 20px ${points > 10 ? '#00ff00' : '#90EE90'}`;
+    return `drop-shadow(0 0 12px ${points > 10 ? '#00ff00' : '#90EE90'})`;
   }
-  return `0 0 20px ${points > -10 ? '#ffcccb' : '#ff0000'}`;
+  return `drop-shadow(0 0 12px ${points > -10 ? '#ffcccb' : '#ff0000'})`;
 };
 
 const getScoreClass = (points: number): string => {

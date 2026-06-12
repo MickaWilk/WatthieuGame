@@ -69,11 +69,11 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop }) => {
           animation: `${animationName} ${position.speed}s ease-in-out infinite`,
           animationDelay: `${position.delay}s`,
           transition: 'transform 0.3s ease-in-out',
-          boxShadow: glowEffect,
+          filter: glowEffect,
         }}
         onClick={handleClick}
       >
-        <div className={`w-full h-full rounded-full p-1 bg-gradient-to-br ${gradientColors}`}>
+        <div className={`w-full h-full rounded-full p-1 bg-gradient-to-br ${gradientColors} ring-2 ring-white/30`}>
           <div className={`absolute -top-2 -right-2 ${scoreClass} text-white rounded-full px-2 py-1 text-sm font-bold shadow-lg z-10`}>
             {friend.points > 0 ? `+${friend.points}` : friend.points}
           </div>
