@@ -25,6 +25,7 @@ const friends: Friend[] = [
 ];
 
 const MILESTONES = [
+  { threshold: 50,   message: "OK." },
   { threshold: 100,  message: "Pas mal du tout ! 👍" },
   { threshold: 250,  message: "Tu commences à cartonner ! 🔥" },
   { threshold: 500,  message: "C'est chaud là ! 🚀" },
