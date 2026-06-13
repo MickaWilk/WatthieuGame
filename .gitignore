@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code - ne jamais committer sur un repo public
+CLAUDE.md
+.claude/

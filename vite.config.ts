@@ -3,5 +3,5 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/WatthieuGame/', // Chemin pour GitHub Pages
+  base: '/', // Cloudflare Pages - root
 });
