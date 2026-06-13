@@ -170,32 +170,37 @@ function App() {
     });
   };
 
-  // Timer + régénération de vague à chaque seconde
+  // Timer (1s) + régénération de vague (1.5s) - décorrélés
   useEffect(() => {
     if (!gameState.isPlaying) return;
 
-    const timer = setInterval(() => {
+    const timerInterval = setInterval(() => {
       setGameState((prev) => {
         if (prev.timeLeft <= 10 && prev.timeLeft > 1) {
           if (!mutedRef.current) playTickSound();
         }
         if (prev.timeLeft <= 1) {
-          clearInterval(timer);
+          clearInterval(timerInterval);
           setSessionBest((best) => (best === null || prev.score > best ? prev.score : best));
           return { ...prev, timeLeft: 0, isPlaying: false };
         }
         return { ...prev, timeLeft: prev.timeLeft - 1 };
       });
+    }, 1000);
 
-      // Régénération de vague à chaque seconde
+    const waveInterval = setInterval(() => {
+      if (!isPlayingRef.current) return;
       waveClicksRef.current = 0;
       lastWavePointsRef.current = [];
       const newRoster = shuffleFriendPoints();
       rosterRef.current = newRoster;
       setBubbles(generateBubbles(newRoster));
-    }, 1000);
+    }, 1500);
 
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timerInterval);
+      clearInterval(waveInterval);
+    };
   }, [gameState.isPlaying]);
 
   const handlePop = (id: number, points: number) => {
