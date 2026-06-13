@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
 import { Bubble } from './components/Bubble';
 import { GameUI } from './components/GameUI';
 import { Friend, BubbleData, GameState } from './types';
@@ -285,6 +286,13 @@ function App() {
               className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-3 rounded-xl text-lg font-bold shadow-lg shadow-purple-500/30 hover:from-blue-600 hover:to-purple-600 hover:scale-105 transition-all duration-150 w-full"
             >
               {gameState.timeLeft === 0 ? 'Rejouer' : 'Commencer'}
+            </button>
+            <button
+              onClick={handleToggleMute}
+              className="mt-3 flex items-center justify-center gap-2 w-full py-2 rounded-xl text-sm text-white/50 hover:text-white/80 hover:bg-white/10 transition-all duration-150"
+            >
+              {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              {muted ? 'Son désactivé' : 'Couper le son'}
             </button>
           </div>
         </div>
