@@ -213,50 +213,78 @@ export interface AmbientMusic {
 export const createAmbientMusic = (type: 'home' | 'game'): AmbientMusic | null => {
   try {
     const ctx = getCtx();
+    const targetVolume = type === 'home' ? 0.15 : 0.12;
+
     const masterGain = ctx.createGain();
-    masterGain.gain.value = type === 'home' ? 0.12 : 0.10;
+    masterGain.gain.value = 0;
     masterGain.connect(ctx.destination);
+    // Fade in progressif
+    masterGain.gain.setTargetAtTime(targetVolume, ctx.currentTime, 1.5);
 
-    // Fréquences : home = ambiance douce, game = plus dynamique
-    const freqs = type === 'home'
-      ? [110, 138.6, 165, 220]   // La2, Ré3b, Mi3, La3 (accord mineur)
-      : [130.8, 164.8, 196, 261.6]; // Do3, Mi3, Sol3, Do4 (accord majeur)
+    // Couche 1 : bruit blanc filtré très bas = texture "bulle / underwater"
+    const bufferSize = ctx.sampleRate * 3;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
 
-    const oscillators: OscillatorNode[] = [];
-    const oscGains: GainNode[] = [];
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    noise.loop = true;
 
-    freqs.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const oscGain = ctx.createGain();
-      osc.connect(oscGain);
-      oscGain.connect(masterGain);
-      osc.type = i === 0 ? 'sine' : i === 1 ? 'triangle' : 'sine';
-      osc.frequency.value = freq;
-      oscGain.gain.value = i === 0 ? 0.5 : 0.2 / freqs.length;
-      osc.start();
-      oscillators.push(osc);
-      oscGains.push(oscGain);
-    });
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'lowpass';
+    noiseFilter.frequency.value = type === 'home' ? 130 : 180;
+    noiseFilter.Q.value = 0.6;
 
-    // LFO lent pour un effet de respiration (tremolo)
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    lfo.connect(lfoGain);
-    lfoGain.connect(masterGain.gain);
-    lfo.frequency.value = 0.15; // 0.15 Hz = cycle de ~6.7s
-    lfoGain.gain.value = 0.03;
-    lfo.start();
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.value = 0.25;
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(masterGain);
+    noise.start();
+
+    // Couche 2 : carillons aléatoires en pentatonique, decay long = son "eau / jeu"
+    const pentatonic = type === 'home'
+      ? [261.6, 293.7, 329.6, 392, 440, 523.3]     // Do4 pentatonique - doux
+      : [329.6, 370, 415.3, 493.9, 554.4, 659.3];   // Mi4 pentatonique - plus vif
+
+    let active = true;
+    const scheduleChime = () => {
+      if (!active) return;
+      const delay = type === 'home'
+        ? Math.random() * 2000 + 1500   // 1.5-3.5s entre notes
+        : Math.random() * 1500 + 800;   // 0.8-2.3s entre notes
+
+      setTimeout(() => {
+        if (!active) return;
+        try {
+          const osc = ctx.createOscillator();
+          const env = ctx.createGain();
+          osc.connect(env);
+          env.connect(masterGain);
+          osc.type = 'sine';
+          osc.frequency.value = pentatonic[Math.floor(Math.random() * pentatonic.length)];
+          const t = ctx.currentTime;
+          env.gain.setValueAtTime(0, t);
+          env.gain.linearRampToValueAtTime(0.3, t + 0.015);
+          env.gain.exponentialRampToValueAtTime(0.001, t + 3.0);
+          osc.start(t);
+          osc.stop(t + 3.0);
+        } catch (_) {}
+        scheduleChime();
+      }, delay);
+    };
+    scheduleChime();
 
     return {
       setVolume: (v: number) => {
-        masterGain.gain.setTargetAtTime(v, ctx.currentTime, 0.1);
+        masterGain.gain.setTargetAtTime(v, ctx.currentTime, 0.3);
       },
       stop: () => {
-        masterGain.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
-        setTimeout(() => {
-          try { lfo.stop(); } catch (_) {}
-          oscillators.forEach(o => { try { o.stop(); } catch (_) {} });
-        }, 1000);
+        active = false;
+        masterGain.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
+        setTimeout(() => { try { noise.stop(); } catch (_) {} }, 2000);
       }
     };
   } catch (_) {
