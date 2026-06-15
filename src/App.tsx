@@ -195,7 +195,7 @@ function App() {
       const newRoster = shuffleFriendPoints();
       rosterRef.current = newRoster;
       setBubbles(generateBubbles(newRoster));
-    }, 1500);
+    }, 2500);
 
     return () => {
       clearInterval(timerInterval);

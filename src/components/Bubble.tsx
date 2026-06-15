@@ -27,6 +27,12 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, muted }
 
   const animationName = useMemo(() => `float-${Math.random().toString(36).substr(2, 9)}`, []);
 
+  // 4 vecteurs indépendants : x et y varient librement dans toutes les directions
+  const kf = useMemo(() => Array.from({ length: 4 }, () => ({
+    x: (Math.random() * 2 - 1),
+    y: (Math.random() * 2 - 1),
+  })), []);
+
   const { glowEffect, scoreClass } = getBubbleStyles(friend.points);
 
   const gradientColors = friend.points >= 0
@@ -35,29 +41,12 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, muted }
 
   const keyframesStyle = `
   @keyframes ${animationName} {
-    0%, 100% {
-      transform: translate(0, 0);
-    }
-    25% {
-      transform: translate(${position.xAmplitude * 0.5 * position.startDirectionX}px,
-                           ${-position.yAmplitude * 0.7 * position.startDirectionY}px);
-    }
-    50% {
-      transform: translate(${-position.xAmplitude * 0.3 * position.startDirectionX}px,
-                           ${-position.yAmplitude * position.startDirectionY}px);
-    }
-    75% {
-      transform: translate(${-position.xAmplitude * position.startDirectionX}px,
-                           ${-position.yAmplitude * 0.5 * position.startDirectionY}px);
-    }
-    85% {
-      transform: translate(${position.xAmplitude * 0.3 * position.startDirectionX}px,
-                           ${position.yAmplitude * 0.3 * position.startDirectionY}px);
-    }
-    95% {
-      transform: translate(${position.xAmplitude * 0.15 * position.startDirectionX}px,
-                           ${position.yAmplitude * 0.15 * position.startDirectionY}px);
-    }
+    0%   { transform: translate(0, 0); }
+    20%  { transform: translate(${position.xAmplitude * kf[0].x}px, ${position.yAmplitude * kf[0].y}px); }
+    40%  { transform: translate(${position.xAmplitude * kf[1].x}px, ${position.yAmplitude * kf[1].y}px); }
+    60%  { transform: translate(${position.xAmplitude * kf[2].x}px, ${position.yAmplitude * kf[2].y}px); }
+    80%  { transform: translate(${position.xAmplitude * kf[3].x}px, ${position.yAmplitude * kf[3].y}px); }
+    100% { transform: translate(0, 0); }
   }
 `;
 
