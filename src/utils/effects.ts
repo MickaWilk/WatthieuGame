@@ -218,64 +218,144 @@ export const createAmbientMusic = (type: 'home' | 'game'): AmbientMusic | null =
     const masterGain = ctx.createGain();
     masterGain.gain.value = 0;
     masterGain.connect(ctx.destination);
-    // Fade in progressif
     masterGain.gain.setTargetAtTime(targetVolume, ctx.currentTime, 1.5);
 
-    // Couche 1 : bruit blanc filtré très bas = texture "bulle / underwater"
+    // Texture bruit de fond
     const bufferSize = ctx.sampleRate * 3;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-
     const noise = ctx.createBufferSource();
     noise.buffer = buffer;
     noise.loop = true;
-
     const noiseFilter = ctx.createBiquadFilter();
-    noiseFilter.type = 'lowpass';
-    noiseFilter.frequency.value = type === 'home' ? 130 : 180;
-    noiseFilter.Q.value = 0.6;
-
+    noiseFilter.type = type === 'home' ? 'lowpass' : 'bandpass';
+    noiseFilter.frequency.value = type === 'home' ? 160 : 450;
+    noiseFilter.Q.value = type === 'home' ? 0.6 : 1.2;
     const noiseGain = ctx.createGain();
-    noiseGain.gain.value = 0.25;
-
+    noiseGain.gain.value = type === 'home' ? 0.22 : 0.16;
     noise.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
     noiseGain.connect(masterGain);
     noise.start();
 
-    // Couche 2 : carillons aléatoires en pentatonique, decay long = son "eau / jeu"
-    const pentatonic = type === 'home'
-      ? [261.6, 293.7, 329.6, 392, 440, 523.3]     // Do4 pentatonique - doux
-      : [329.6, 370, 415.3, 493.9, 554.4, 659.3];   // Mi4 pentatonique - plus vif
-
     let active = true;
-    const scheduleChime = () => {
-      if (!active) return;
-      const delay = type === 'home'
-        ? Math.random() * 2000 + 1500   // 1.5-3.5s entre notes
-        : Math.random() * 1500 + 800;   // 0.8-2.3s entre notes
 
-      setTimeout(() => {
+    if (type === 'home') {
+      // Accueil : carillons doux toutes les 1-2.5s + légère pulsation basse
+      const homeNotes = [261.6, 293.7, 329.6, 392, 440, 523.3];
+      const scheduleChime = () => {
         if (!active) return;
-        try {
-          const osc = ctx.createOscillator();
-          const env = ctx.createGain();
-          osc.connect(env);
-          env.connect(masterGain);
-          osc.type = 'sine';
-          osc.frequency.value = pentatonic[Math.floor(Math.random() * pentatonic.length)];
-          const t = ctx.currentTime;
-          env.gain.setValueAtTime(0, t);
-          env.gain.linearRampToValueAtTime(0.3, t + 0.015);
-          env.gain.exponentialRampToValueAtTime(0.001, t + 3.0);
-          osc.start(t);
-          osc.stop(t + 3.0);
-        } catch (_) {}
-        scheduleChime();
-      }, delay);
-    };
-    scheduleChime();
+        setTimeout(() => {
+          if (!active) return;
+          try {
+            const osc = ctx.createOscillator();
+            const env = ctx.createGain();
+            osc.connect(env); env.connect(masterGain);
+            osc.type = 'sine';
+            osc.frequency.value = homeNotes[Math.floor(Math.random() * homeNotes.length)];
+            const t = ctx.currentTime;
+            env.gain.setValueAtTime(0, t);
+            env.gain.linearRampToValueAtTime(0.28, t + 0.02);
+            env.gain.exponentialRampToValueAtTime(0.001, t + 2.2);
+            osc.start(t); osc.stop(t + 2.2);
+          } catch (_) {}
+          scheduleChime();
+        }, Math.random() * 1500 + 1000);
+      };
+      scheduleChime();
+
+      // Pulsation basse discrète toutes les ~2s (assise minimale)
+      const scheduleBass = () => {
+        if (!active) return;
+        setTimeout(() => {
+          if (!active) return;
+          try {
+            const osc = ctx.createOscillator();
+            const env = ctx.createGain();
+            osc.connect(env); env.connect(masterGain);
+            osc.type = 'sine';
+            osc.frequency.value = 130.8; // C3
+            const t = ctx.currentTime;
+            env.gain.setValueAtTime(0.14, t);
+            env.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+            osc.start(t); osc.stop(t + 0.5);
+          } catch (_) {}
+          scheduleBass();
+        }, 2000 + Math.random() * 600);
+      };
+      scheduleBass();
+
+    } else {
+      // Jeu : trois couches pour un son dynamique et énergique
+
+      // Couche 1 : chimes aigus rapides (E5-C6, 0.3-0.8s)
+      const highNotes = [659.3, 783.9, 880, 987.8, 1046.5];
+      const scheduleHigh = () => {
+        if (!active) return;
+        setTimeout(() => {
+          if (!active) return;
+          try {
+            const osc = ctx.createOscillator();
+            const env = ctx.createGain();
+            osc.connect(env); env.connect(masterGain);
+            osc.type = 'sine';
+            osc.frequency.value = highNotes[Math.floor(Math.random() * highNotes.length)];
+            const t = ctx.currentTime;
+            env.gain.setValueAtTime(0, t);
+            env.gain.linearRampToValueAtTime(0.22, t + 0.01);
+            env.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+            osc.start(t); osc.stop(t + 0.9);
+          } catch (_) {}
+          scheduleHigh();
+        }, Math.random() * 500 + 300);
+      };
+      scheduleHigh();
+
+      // Couche 2 : harmonie médium (G4-E5, 0.8-1.8s, triangle = plus rond)
+      const midNotes = [392, 440, 523.3, 587.3, 659.3];
+      const scheduleMid = () => {
+        if (!active) return;
+        setTimeout(() => {
+          if (!active) return;
+          try {
+            const osc = ctx.createOscillator();
+            const env = ctx.createGain();
+            osc.connect(env); env.connect(masterGain);
+            osc.type = 'triangle';
+            osc.frequency.value = midNotes[Math.floor(Math.random() * midNotes.length)];
+            const t = ctx.currentTime;
+            env.gain.setValueAtTime(0, t);
+            env.gain.linearRampToValueAtTime(0.18, t + 0.02);
+            env.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+            osc.start(t); osc.stop(t + 1.4);
+          } catch (_) {}
+          scheduleMid();
+        }, Math.random() * 1000 + 800);
+      };
+      scheduleMid();
+
+      // Couche 3 : pulse basse régulière toutes les 1.5s (énergie rythmique)
+      const schedulePulse = () => {
+        if (!active) return;
+        setTimeout(() => {
+          if (!active) return;
+          try {
+            const osc = ctx.createOscillator();
+            const env = ctx.createGain();
+            osc.connect(env); env.connect(masterGain);
+            osc.type = 'sine';
+            osc.frequency.value = 196; // G3 - audible sur toutes enceintes
+            const t = ctx.currentTime;
+            env.gain.setValueAtTime(0.28, t);
+            env.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+            osc.start(t); osc.stop(t + 0.3);
+          } catch (_) {}
+          schedulePulse();
+        }, 1500);
+      };
+      schedulePulse();
+    }
 
     return {
       setVolume: (v: number) => {

@@ -7,14 +7,14 @@ interface BubbleProps {
   friend: BubbleData;
   position: BubbleData['position'];
   onPop: (id: number, points: number) => void;
-  muted: boolean;
+  mutedSfx: boolean;
 }
 
-export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, muted }) => {
+export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSfx }) => {
   const [hovered, setHovered] = useState(false);
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!muted) {
+    if (!mutedSfx) {
       const audio = new Audio(friend.soundUrl);
       audio.volume = 0.5;
       audio.play().catch(e => console.log('Audio play failed:', e));

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Volume2, VolumeX } from 'lucide-react';
+import { Music, Volume2, VolumeX } from 'lucide-react';
 import { Bubble } from '@/components/Bubble';
 import { GameUI } from '@/components/GameUI';
 import { Friend, BubbleData, GameState } from '@/types';
@@ -27,7 +27,6 @@ import { generateBubblePosition } from '@/utils/bubbleUtils';
 
 const GAME_DURATION = 60;
 
-// Bug fix : le dossier s'appelle added_sounds, pas sounds
 const SOUND_URLS = Array.from({ length: 29 }, (_, i) => `${import.meta.env.BASE_URL}added_sounds/${i + 1}.mp3`);
 
 const friends: Friend[] = [
@@ -94,7 +93,8 @@ function App() {
   const [sessionBest, setSessionBest] = useState<number | null>(null);
   const [comboMessage, setComboMessage] = useState<{ text: string; variant: ComboVariant } | null>(null);
   const [milestoneToast, setMilestoneToast] = useState<{ message: string; level: number } | null>(null);
-  const [muted, setMuted] = useState(false);
+  const [mutedMusic, setMutedMusic] = useState(false);
+  const [mutedSfx, setMutedSfx] = useState(false);
 
   const isPlayingRef = useRef(false);
   const rosterRef = useRef<Friend[]>(friends);
@@ -103,29 +103,22 @@ function App() {
   const waveClicksRef = useRef(0);
   const lastWavePointsRef = useRef<number[]>([]);
   const ambientRef = useRef<AmbientMusic | null>(null);
-  const mutedRef = useRef(muted);
+  const mutedSfxRef = useRef(mutedSfx);
+  const waveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    isPlayingRef.current = gameState.isPlaying;
-  }, [gameState.isPlaying]);
+  useEffect(() => { isPlayingRef.current = gameState.isPlaying; }, [gameState.isPlaying]);
+  useEffect(() => { currentScoreRef.current = gameState.score; }, [gameState.score]);
+  useEffect(() => { mutedSfxRef.current = mutedSfx; }, [mutedSfx]);
 
-  useEffect(() => {
-    currentScoreRef.current = gameState.score;
-  }, [gameState.score]);
-
-  useEffect(() => {
-    mutedRef.current = muted;
-  }, [muted]);
-
-  // Musique d'accueil quand pas en jeu
+  // Musique d'accueil
   useEffect(() => {
     if (!gameState.isPlaying) {
       ambientRef.current?.stop();
       const music = createAmbientMusic('home');
       ambientRef.current = music;
-      if (muted && music) music.setVolume(0);
+      if (mutedMusic && music) music.setVolume(0);
     }
-  }, [gameState.isPlaying]); // muted géré séparément
+  }, [gameState.isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Musique en jeu
   useEffect(() => {
@@ -133,26 +126,47 @@ function App() {
       ambientRef.current?.stop();
       const music = createAmbientMusic('game');
       ambientRef.current = music;
-      if (muted && music) music.setVolume(0);
+      if (mutedMusic && music) music.setVolume(0);
     }
-  }, [gameState.isPlaying]);
+  }, [gameState.isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Mute toggle
-  const handleToggleMute = () => {
-    setMuted(prev => {
+  const handleToggleMusic = () => {
+    setMutedMusic(prev => {
       const next = !prev;
       if (ambientRef.current) {
-        ambientRef.current.setVolume(next ? 0 : (gameState.isPlaying ? 0.10 : 0.12));
+        ambientRef.current.setVolume(next ? 0 : (isPlayingRef.current ? 0.12 : 0.15));
       }
       return next;
     });
   };
 
+  const handleToggleSfx = () => {
+    setMutedSfx(prev => !prev);
+  };
+
   const showComboFeedback = (points: number[]) => {
     const { text, variant } = getComboMessage(points);
     setComboMessage({ text, variant });
-    if (!muted) playComboSound(variant);
+    if (!mutedSfxRef.current) playComboSound(variant);
     setTimeout(() => setComboMessage(null), 1800);
+  };
+
+  // Régénère les bulles et remet le compteur de vague à zéro
+  const doWave = () => {
+    waveClicksRef.current = 0;
+    lastWavePointsRef.current = [];
+    const newRoster = shuffleFriendPoints();
+    rosterRef.current = newRoster;
+    setBubbles(generateBubbles(newRoster));
+  };
+
+  // Repart le timer automatique de vague à zéro - appelé au combo pour resynchroniser
+  const resetWaveTimer = () => {
+    if (waveIntervalRef.current) clearInterval(waveIntervalRef.current);
+    waveIntervalRef.current = setInterval(() => {
+      if (!isPlayingRef.current) return;
+      doWave();
+    }, 2500);
   };
 
   const startGame = () => {
@@ -170,14 +184,16 @@ function App() {
     });
   };
 
-  // Timer (1s) + régénération de vague (1.5s) - décorrélés
+  // Timer (1s) + vague (2.5s) décorrélés - waveIntervalRef permet le reset au combo
   useEffect(() => {
     if (!gameState.isPlaying) return;
+
+    resetWaveTimer();
 
     const timerInterval = setInterval(() => {
       setGameState((prev) => {
         if (prev.timeLeft <= 10 && prev.timeLeft > 1) {
-          if (!mutedRef.current) playTickSound();
+          if (!mutedSfxRef.current) playTickSound();
         }
         if (prev.timeLeft <= 1) {
           clearInterval(timerInterval);
@@ -188,41 +204,25 @@ function App() {
       });
     }, 1000);
 
-    const waveInterval = setInterval(() => {
-      if (!isPlayingRef.current) return;
-      waveClicksRef.current = 0;
-      lastWavePointsRef.current = [];
-      const newRoster = shuffleFriendPoints();
-      rosterRef.current = newRoster;
-      setBubbles(generateBubbles(newRoster));
-    }, 2500);
-
     return () => {
       clearInterval(timerInterval);
-      clearInterval(waveInterval);
+      if (waveIntervalRef.current) clearInterval(waveIntervalRef.current);
     };
-  }, [gameState.isPlaying]);
+  }, [gameState.isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePop = (id: number, points: number) => {
-    if (!muted) {
-      if (points > 0) {
-        playPositiveEffect(points);
-      } else {
-        playNegativeEffect();
-      }
-    }
+    // Confetti toujours visible (visuel non affecté par le mute SFX)
+    if (points > 0) playPositiveEffect(points);
+    else playNegativeEffect();
 
-    // Vérification des paliers
     const prevScore = currentScoreRef.current;
     const newScore = prevScore + points;
     const milestoneIndex = MILESTONES.findIndex(m => prevScore < m.threshold && newScore >= m.threshold);
     if (milestoneIndex !== -1) {
       const duration = milestoneIndex >= 6 ? 2500 : milestoneIndex >= 4 ? 2000 : 1500;
       setMilestoneToast({ message: MILESTONES[milestoneIndex].message, level: milestoneIndex });
-      if (!muted) {
-        playMilestoneSound(milestoneIndex);
-        playMilestoneConfetti(milestoneIndex);
-      }
+      playMilestoneConfetti(milestoneIndex);
+      if (!mutedSfxRef.current) playMilestoneSound(milestoneIndex);
       setTimeout(() => setMilestoneToast(null), duration);
     }
 
@@ -233,19 +233,14 @@ function App() {
 
     setBubbles((prev) => prev.filter((b) => b.id !== id));
 
-    // Logique vague
     lastWavePointsRef.current.push(points);
     waveClicksRef.current += 1;
 
     if (waveClicksRef.current >= 3) {
-      // Combo ! Régénération immédiate
       const comboPoints = lastWavePointsRef.current.slice(-3);
-      waveClicksRef.current = 0;
-      lastWavePointsRef.current = [];
       comboGenRef.current += 1;
-      const newRoster = shuffleFriendPoints();
-      rosterRef.current = newRoster;
-      setBubbles(generateBubbles(newRoster));
+      doWave();         // Régénération immédiate
+      resetWaveTimer(); // Repart le timer de 2.5s depuis ce combo
       showComboFeedback(comboPoints);
     }
   };
@@ -292,13 +287,22 @@ function App() {
             >
               {gameState.timeLeft === 0 ? 'Rejouer' : 'Commencer'}
             </button>
-            <button
-              onClick={handleToggleMute}
-              className="mt-3 flex items-center justify-center gap-2 w-full py-2 rounded-xl text-sm text-white/50 hover:text-white/80 hover:bg-white/10 transition-all duration-150"
-            >
-              {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-              {muted ? 'Son désactivé' : 'Couper le son'}
-            </button>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={handleToggleMusic}
+                className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm text-white/50 hover:text-white/80 hover:bg-white/10 transition-all duration-150"
+              >
+                {mutedMusic ? <VolumeX className="w-4 h-4" /> : <Music className="w-4 h-4" />}
+                Musique
+              </button>
+              <button
+                onClick={handleToggleSfx}
+                className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm text-white/50 hover:text-white/80 hover:bg-white/10 transition-all duration-150"
+              >
+                {mutedSfx ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                Sons
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -308,8 +312,10 @@ function App() {
           <GameUI
             score={gameState.score}
             timeLeft={gameState.timeLeft}
-            muted={muted}
-            onToggleMute={handleToggleMute}
+            mutedMusic={mutedMusic}
+            mutedSfx={mutedSfx}
+            onToggleMusic={handleToggleMusic}
+            onToggleSfx={handleToggleSfx}
           />
           {bubbles.map((bubble) => (
             <Bubble
@@ -317,13 +323,12 @@ function App() {
               friend={bubble}
               position={bubble.position}
               onPop={handlePop}
-              muted={muted}
+              mutedSfx={mutedSfx}
             />
           ))}
         </>
       )}
 
-      {/* Overlay combo */}
       {comboMessage && (
         <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50">
           <div className={`text-3xl font-extrabold px-6 py-3 rounded-2xl shadow-2xl bg-black/70 backdrop-blur-sm border ${
@@ -336,7 +341,6 @@ function App() {
         </div>
       )}
 
-      {/* Toast palier - coin bas-droit, intensité crescendo */}
       {milestoneToast && (
         <div className="fixed bottom-6 right-6 z-50 pointer-events-none max-w-xs text-right">
           <div className={getMilestoneClasses(milestoneToast.level)}>
