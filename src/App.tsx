@@ -3,25 +3,45 @@ import { Music, Volume2, VolumeX } from 'lucide-react';
 import { Bubble } from '@/components/Bubble';
 import { GameUI } from '@/components/GameUI';
 import { Friend, BubbleData, GameState } from '@/types';
-import { playPositiveEffect, playNegativeEffect, playTickSound, playComboSound, playMilestoneSound, playMilestoneConfetti, createAmbientMusic, AmbientMusic } from '@/utils/effects';
+import { playPositiveEffect, playNegativeEffect, playTickSound, playComboSound, playMilestoneSound, playMilestoneConfetti, playMilestoneFailSound, playMilestoneFailConfetti, createAmbientMusic, AmbientMusic } from '@/utils/effects';
 
 type ComboVariant = 'positive' | 'negative' | 'mixed';
 
+// Échelle crescendo couvrant toutes les sommes possibles (-75 à +90).
+// Trois familles : 3 bonnes (allPos), 3 mauvaises (allNeg), mixte.
 const getComboMessage = (poppedPoints: number[]): { text: string; variant: ComboVariant } => {
   const total = poppedPoints.reduce((a, b) => a + b, 0);
   const allPos = poppedPoints.every(p => p > 0);
   const allNeg = poppedPoints.every(p => p < 0);
 
-  if (allPos && total >= 60)  return { text: 'TRIFORCE LÉGENDAIRE ! 🏆🔥', variant: 'positive' };
-  if (allPos && total >= 30)  return { text: 'COMBO PARFAIT ! ⭐⭐⭐', variant: 'positive' };
-  if (allPos)                 return { text: 'Propre ! 💪', variant: 'positive' };
-  if (allNeg && total <= -50) return { text: 'COMPLÈTEMENT ÉCLATÉ AU SOL. 💀💀', variant: 'negative' };
-  if (allNeg && total <= -20) return { text: "T'as fait exprès ou quoi ? 💀", variant: 'negative' };
-  if (allNeg)                 return { text: 'Vraiment ? 🤦', variant: 'negative' };
-  if (total >= 30)            return { text: 'Bien joué ! 🔥', variant: 'positive' };
-  if (total >= 0)             return { text: 'Combo correct ! 😎', variant: 'mixed' };
-  if (total < -20)            return { text: "C'était pas la bonne idée... 😬", variant: 'negative' };
-  return { text: 'Combo raté de peu 😅', variant: 'mixed' };
+  // 3 bonnes bulles : crescendo de gloire
+  if (allPos) {
+    if (total >= 85) return { text: 'TRIFORCE DIVINE ! 🏆👑🔥', variant: 'positive' };
+    if (total >= 70) return { text: 'TRIFORCE LÉGENDAIRE ! 🏆🔥', variant: 'positive' };
+    if (total >= 55) return { text: 'TRIPLE PARFAIT ! ⭐⭐⭐', variant: 'positive' };
+    if (total >= 40) return { text: 'COMBO EN OR ! 🥇', variant: 'positive' };
+    if (total >= 25) return { text: 'Triplé propre ! 💪', variant: 'positive' };
+    return { text: 'Trois bonnes, joli 😎', variant: 'positive' };
+  }
+
+  // 3 mauvaises bulles : crescendo de honte
+  if (allNeg) {
+    if (total <= -65) return { text: 'AUTODESTRUCTION TOTALE ☠️💀☠️', variant: 'negative' };
+    if (total <= -50) return { text: 'COMPLÈTEMENT ÉCLATÉ AU SOL 💀💀', variant: 'negative' };
+    if (total <= -35) return { text: 'Catastrophe intégrale 🔥💀', variant: 'negative' };
+    if (total <= -20) return { text: "T'as fait exprès ou quoi ? 😱", variant: 'negative' };
+    return { text: 'Trois mauvaises... vraiment ? 🤦', variant: 'negative' };
+  }
+
+  // Mixte : crescendo selon le bilan net
+  if (total >= 50) return { text: 'Énorme malgré tout ! 🚀', variant: 'positive' };
+  if (total >= 35) return { text: 'Très bien joué ! 🔥', variant: 'positive' };
+  if (total >= 20) return { text: 'Combo solide 😎', variant: 'mixed' };
+  if (total >= 5)  return { text: 'Combo correct 👍', variant: 'mixed' };
+  if (total >= -5) return { text: 'Pile à l’équilibre ⚖️', variant: 'mixed' };
+  if (total >= -20) return { text: 'Mitigé... 😬', variant: 'mixed' };
+  if (total >= -35) return { text: 'Pas terrible ça 😕', variant: 'negative' };
+  return { text: 'Combo raté 😅', variant: 'negative' };
 };
 import { generateBubblePosition } from '@/utils/bubbleUtils';
 
@@ -57,6 +77,20 @@ const MILESTONES = [
   { threshold: 3000, message: "YOU'RE FUCKING GODLIKE. 👁️" },
 ];
 
+// Classement de la honte : franchi vers le bas (score qui s'effondre)
+const NEGATIVE_MILESTONES = [
+  { threshold: -50,   message: "Nul. Bien naze. 👎" },
+  { threshold: -100,  message: "Vraiment pas doué... 🫤" },
+  { threshold: -250,  message: "C'est un talent d'être aussi mauvais 😬" },
+  { threshold: -500,  message: "Catastrophe ambulante 💀" },
+  { threshold: -750,  message: "Tu le fais exprès là ?! 🤡" },
+  { threshold: -1000, message: "Honte nationale 🚮" },
+  { threshold: -1500, message: "Sous-sol de l'humanité 👻" },
+  { threshold: -2000, message: "Cas d'école de nullité 📉" },
+  { threshold: -2500, message: "On étudiera ton cas en labo 🔬" },
+  { threshold: -3000, message: "LE PIRE HUMAIN DE L'HUMANITÉ. LE PLUS GROS NASE QUI N'AIT JAMAIS EXISTÉ. 🪦💩" },
+];
+
 const getRandomSound = () => SOUND_URLS[Math.floor(Math.random() * SOUND_URLS.length)];
 
 const shuffleFriendPoints = (): Friend[] => {
@@ -83,6 +117,16 @@ const getMilestoneClasses = (level: number): string => {
   return "text-4xl px-8 py-5 rounded-2xl font-extrabold text-white milestone-godlike-max";
 };
 
+const getNegativeMilestoneClasses = (level: number): string => {
+  if (level <= 1) return "text-sm px-4 py-2 rounded-xl font-semibold text-white bg-white/20 backdrop-blur border border-white/30";
+  if (level <= 3) return "text-base px-5 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-slate-600/90 to-zinc-700/90 shadow-lg";
+  if (level <= 4) return "text-lg px-6 py-3 rounded-xl font-extrabold text-white bg-gradient-to-r from-red-800 to-red-600 shadow-xl shadow-red-900/40 animate-pulse";
+  if (level <= 5) return "text-xl px-6 py-4 rounded-2xl font-extrabold text-white bg-gradient-to-r from-red-900 via-rose-800 to-stone-800 shadow-2xl shadow-red-900/50 milestone-doom";
+  if (level === 6) return "text-2xl px-7 py-4 rounded-2xl font-extrabold text-white bg-gradient-to-r from-stone-800 via-red-900 to-black shadow-2xl milestone-doom";
+  if (level === 7) return "text-3xl px-8 py-5 rounded-2xl font-extrabold text-white bg-gradient-to-r from-red-950 via-black to-red-900 shadow-2xl milestone-doom";
+  return "text-4xl px-8 py-5 rounded-2xl font-extrabold text-white milestone-doom-max";
+};
+
 function App() {
   const [gameState, setGameState] = useState<GameState>({
     score: 0,
@@ -92,7 +136,7 @@ function App() {
   const [bubbles, setBubbles] = useState<BubbleData[]>([]);
   const [sessionBest, setSessionBest] = useState<number | null>(null);
   const [comboMessage, setComboMessage] = useState<{ text: string; variant: ComboVariant } | null>(null);
-  const [milestoneToast, setMilestoneToast] = useState<{ message: string; level: number } | null>(null);
+  const [milestoneToast, setMilestoneToast] = useState<{ message: string; level: number; kind: 'positive' | 'negative' } | null>(null);
   const [mutedMusic, setMutedMusic] = useState(false);
   const [mutedSfx, setMutedSfx] = useState(false);
 
@@ -105,6 +149,8 @@ function App() {
   const ambientRef = useRef<AmbientMusic | null>(null);
   const mutedSfxRef = useRef(mutedSfx);
   const waveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const comboTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const milestoneTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { isPlayingRef.current = gameState.isPlaying; }, [gameState.isPlaying]);
   useEffect(() => { currentScoreRef.current = gameState.score; }, [gameState.score]);
@@ -146,9 +192,11 @@ function App() {
 
   const showComboFeedback = (points: number[]) => {
     const { text, variant } = getComboMessage(points);
+    // Clear le timeout précédent pour ne pas couper un message qui vient d'apparaître
+    if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current);
     setComboMessage({ text, variant });
     if (!mutedSfxRef.current) playComboSound(variant);
-    setTimeout(() => setComboMessage(null), 1800);
+    comboTimeoutRef.current = setTimeout(() => setComboMessage(null), 1800);
   };
 
   // Régénère les bulles et remet le compteur de vague à zéro
@@ -217,13 +265,23 @@ function App() {
 
     const prevScore = currentScoreRef.current;
     const newScore = prevScore + points;
-    const milestoneIndex = MILESTONES.findIndex(m => prevScore < m.threshold && newScore >= m.threshold);
-    if (milestoneIndex !== -1) {
-      const duration = milestoneIndex >= 6 ? 2500 : milestoneIndex >= 4 ? 2000 : 1500;
-      setMilestoneToast({ message: MILESTONES[milestoneIndex].message, level: milestoneIndex });
-      playMilestoneConfetti(milestoneIndex);
-      if (!mutedSfxRef.current) playMilestoneSound(milestoneIndex);
-      setTimeout(() => setMilestoneToast(null), duration);
+    // Montée : palier de gloire ; descente : palier de honte (un seul franchi par pop)
+    const posIndex = MILESTONES.findIndex(m => prevScore < m.threshold && newScore >= m.threshold);
+    const negIndex = NEGATIVE_MILESTONES.findIndex(m => prevScore > m.threshold && newScore <= m.threshold);
+    if (posIndex !== -1) {
+      const duration = posIndex >= 6 ? 2500 : posIndex >= 4 ? 2000 : 1500;
+      if (milestoneTimeoutRef.current) clearTimeout(milestoneTimeoutRef.current);
+      setMilestoneToast({ message: MILESTONES[posIndex].message, level: posIndex, kind: 'positive' });
+      playMilestoneConfetti(posIndex);
+      if (!mutedSfxRef.current) playMilestoneSound(posIndex);
+      milestoneTimeoutRef.current = setTimeout(() => setMilestoneToast(null), duration);
+    } else if (negIndex !== -1) {
+      const duration = negIndex >= 6 ? 2500 : negIndex >= 4 ? 2000 : 1500;
+      if (milestoneTimeoutRef.current) clearTimeout(milestoneTimeoutRef.current);
+      setMilestoneToast({ message: NEGATIVE_MILESTONES[negIndex].message, level: negIndex, kind: 'negative' });
+      playMilestoneFailConfetti(negIndex);
+      if (!mutedSfxRef.current) playMilestoneFailSound(negIndex);
+      milestoneTimeoutRef.current = setTimeout(() => setMilestoneToast(null), duration);
     }
 
     setGameState((prev) => ({
@@ -343,7 +401,9 @@ function App() {
 
       {milestoneToast && (
         <div className="fixed bottom-6 right-6 z-50 pointer-events-none max-w-xs text-right">
-          <div className={getMilestoneClasses(milestoneToast.level)}>
+          <div className={milestoneToast.kind === 'negative'
+            ? getNegativeMilestoneClasses(milestoneToast.level)
+            : getMilestoneClasses(milestoneToast.level)}>
             {milestoneToast.message}
           </div>
         </div>

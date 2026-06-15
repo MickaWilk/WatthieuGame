@@ -177,6 +177,60 @@ export const playMilestoneSound = (level: number) => {
   } catch (_) { /* audio non bloquant */ }
 };
 
+// Son d'humiliation : descente sawtooth qui s'effondre, façon "trombone triste"
+export const playMilestoneFailSound = (level: number) => {
+  try {
+    const ctx = getCtx();
+    const now = ctx.currentTime;
+    // Plus on s'enfonce, plus la chute est grave et longue
+    const base = 220 - level * 12;
+    const notes = [base, base * 0.84, base * 0.7, base * 0.55];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sawtooth';
+      osc.frequency.value = freq;
+      const t = now + i * 0.13;
+      gain.gain.setValueAtTime(0.2, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      osc.start(t);
+      osc.stop(t + 0.35);
+    });
+    // "Splat" final pour les paliers les plus bas
+    if (level >= 6) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(120, now + 0.5);
+      osc.frequency.exponentialRampToValueAtTime(40, now + 0.9);
+      gain.gain.setValueAtTime(0.18, now + 0.5);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.95);
+      osc.start(now + 0.5);
+      osc.stop(now + 0.95);
+    }
+  } catch (_) { /* audio non bloquant */ }
+};
+
+export const playMilestoneFailConfetti = (level: number) => {
+  if (level < 4) return;
+  const dark = ['#4b5563', '#1f2937', '#7f1d1d', '#451a03', '#000000'];
+  // Pluie morne qui tombe depuis le haut
+  confetti({
+    particleCount: 40 + level * 15,
+    spread: 80 + level * 8,
+    startVelocity: 12,
+    origin: { x: 0.88, y: 0.1 },
+    colors: dark,
+    gravity: 1.4,
+    ticks: 200 + level * 30,
+    scalar: 0.9,
+  });
+};
+
 export const playMilestoneConfetti = (level: number) => {
   if (level < 5) return;
   const epicColors = ['#FFD700', '#FF00FF', '#00FFFF', '#FF4500', '#FFFFFF'];
@@ -210,17 +264,25 @@ export interface AmbientMusic {
   stop: () => void;
 }
 
+// Notes (Hz). Rest = 0.
+const N = {
+  A2: 110, C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196, A3: 220,
+  C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392, A4: 440,
+  C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880,
+} as const;
+const R = 0;
+
 export const createAmbientMusic = (type: 'home' | 'game'): AmbientMusic | null => {
   try {
     const ctx = getCtx();
-    const targetVolume = type === 'home' ? 0.15 : 0.12;
+    const targetVolume = type === 'home' ? 0.14 : 0.12;
 
     const masterGain = ctx.createGain();
     masterGain.gain.value = 0;
     masterGain.connect(ctx.destination);
-    masterGain.gain.setTargetAtTime(targetVolume, ctx.currentTime, 1.5);
+    masterGain.gain.setTargetAtTime(targetVolume, ctx.currentTime, 1.2);
 
-    // Texture bruit de fond
+    // Texture de fond très discrète
     const bufferSize = ctx.sampleRate * 3;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -229,133 +291,72 @@ export const createAmbientMusic = (type: 'home' | 'game'): AmbientMusic | null =
     noise.buffer = buffer;
     noise.loop = true;
     const noiseFilter = ctx.createBiquadFilter();
-    noiseFilter.type = type === 'home' ? 'lowpass' : 'bandpass';
-    noiseFilter.frequency.value = type === 'home' ? 160 : 450;
-    noiseFilter.Q.value = type === 'home' ? 0.6 : 1.2;
+    noiseFilter.type = 'lowpass';
+    noiseFilter.frequency.value = type === 'home' ? 140 : 220;
+    noiseFilter.Q.value = 0.6;
     const noiseGain = ctx.createGain();
-    noiseGain.gain.value = type === 'home' ? 0.22 : 0.16;
+    noiseGain.gain.value = type === 'home' ? 0.18 : 0.1;
     noise.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
     noiseGain.connect(masterGain);
     noise.start();
 
+    // Joue une note ponctuelle
+    const playNote = (
+      freq: number,
+      wave: OscillatorType,
+      attack: number,
+      release: number,
+      vel: number,
+    ) => {
+      if (freq <= 0) return;
+      const osc = ctx.createOscillator();
+      const env = ctx.createGain();
+      osc.connect(env); env.connect(masterGain);
+      osc.type = wave;
+      osc.frequency.value = freq;
+      const t = ctx.currentTime;
+      env.gain.setValueAtTime(0, t);
+      env.gain.linearRampToValueAtTime(vel, t + attack);
+      env.gain.exponentialRampToValueAtTime(0.001, t + release);
+      osc.start(t);
+      osc.stop(t + release + 0.05);
+    };
+
+    // Séquences : La mineur pentatonique. 16 pas, 1 basse par bar (4 pas).
+    // Game = vif et groove ; Home = même gamme, plus lent et doux.
+    const melody = type === 'game'
+      ? [N.A4, R,     N.C5,  N.E5,  R,     N.D5,  N.C5,  R,
+         N.E5,  N.G5,  R,     N.A5,  N.G5,  N.E5,  N.D5,  R]
+      : [N.A4, R,     R,     N.C5,  R,     R,     N.E5,  R,
+         N.D5,  R,     R,     N.G4,  R,     R,     N.E4,  R];
+
+    const bassline = type === 'game'
+      ? [N.A2, N.F3, N.C3, N.G3]      // i - VI - III - VII
+      : [N.A2, N.F3, N.C3, N.E3];
+
+    const stepMs = type === 'game' ? 200 : 380; // ~150 vs ~80 BPM (croches)
+    const melVel = type === 'game' ? 0.16 : 0.13;
+    const melRelease = type === 'game' ? 0.45 : 1.0;
+    const melWave: OscillatorType = type === 'game' ? 'triangle' : 'sine';
+
     let active = true;
+    let step = 0;
+    const tick = () => {
+      if (!active) return;
+      const noteFreq = melody[step % melody.length];
+      playNote(noteFreq, melWave, 0.01, melRelease, melVel);
 
-    if (type === 'home') {
-      // Accueil : carillons doux toutes les 1-2.5s + légère pulsation basse
-      const homeNotes = [261.6, 293.7, 329.6, 392, 440, 523.3];
-      const scheduleChime = () => {
-        if (!active) return;
-        setTimeout(() => {
-          if (!active) return;
-          try {
-            const osc = ctx.createOscillator();
-            const env = ctx.createGain();
-            osc.connect(env); env.connect(masterGain);
-            osc.type = 'sine';
-            osc.frequency.value = homeNotes[Math.floor(Math.random() * homeNotes.length)];
-            const t = ctx.currentTime;
-            env.gain.setValueAtTime(0, t);
-            env.gain.linearRampToValueAtTime(0.28, t + 0.02);
-            env.gain.exponentialRampToValueAtTime(0.001, t + 2.2);
-            osc.start(t); osc.stop(t + 2.2);
-          } catch (_) {}
-          scheduleChime();
-        }, Math.random() * 1500 + 1000);
-      };
-      scheduleChime();
+      // Basse + accent rythmique sur le premier pas de chaque bar
+      if (step % 4 === 0) {
+        const bass = bassline[(step / 4) % bassline.length];
+        playNote(bass, 'sine', 0.005, type === 'game' ? 0.6 : 1.1, type === 'game' ? 0.3 : 0.2);
+      }
 
-      // Pulsation basse discrète toutes les ~2s (assise minimale)
-      const scheduleBass = () => {
-        if (!active) return;
-        setTimeout(() => {
-          if (!active) return;
-          try {
-            const osc = ctx.createOscillator();
-            const env = ctx.createGain();
-            osc.connect(env); env.connect(masterGain);
-            osc.type = 'sine';
-            osc.frequency.value = 130.8; // C3
-            const t = ctx.currentTime;
-            env.gain.setValueAtTime(0.14, t);
-            env.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-            osc.start(t); osc.stop(t + 0.5);
-          } catch (_) {}
-          scheduleBass();
-        }, 2000 + Math.random() * 600);
-      };
-      scheduleBass();
-
-    } else {
-      // Jeu : trois couches pour un son dynamique et énergique
-
-      // Couche 1 : chimes aigus rapides (E5-C6, 0.3-0.8s)
-      const highNotes = [659.3, 783.9, 880, 987.8, 1046.5];
-      const scheduleHigh = () => {
-        if (!active) return;
-        setTimeout(() => {
-          if (!active) return;
-          try {
-            const osc = ctx.createOscillator();
-            const env = ctx.createGain();
-            osc.connect(env); env.connect(masterGain);
-            osc.type = 'sine';
-            osc.frequency.value = highNotes[Math.floor(Math.random() * highNotes.length)];
-            const t = ctx.currentTime;
-            env.gain.setValueAtTime(0, t);
-            env.gain.linearRampToValueAtTime(0.22, t + 0.01);
-            env.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
-            osc.start(t); osc.stop(t + 0.9);
-          } catch (_) {}
-          scheduleHigh();
-        }, Math.random() * 500 + 300);
-      };
-      scheduleHigh();
-
-      // Couche 2 : harmonie médium (G4-E5, 0.8-1.8s, triangle = plus rond)
-      const midNotes = [392, 440, 523.3, 587.3, 659.3];
-      const scheduleMid = () => {
-        if (!active) return;
-        setTimeout(() => {
-          if (!active) return;
-          try {
-            const osc = ctx.createOscillator();
-            const env = ctx.createGain();
-            osc.connect(env); env.connect(masterGain);
-            osc.type = 'triangle';
-            osc.frequency.value = midNotes[Math.floor(Math.random() * midNotes.length)];
-            const t = ctx.currentTime;
-            env.gain.setValueAtTime(0, t);
-            env.gain.linearRampToValueAtTime(0.18, t + 0.02);
-            env.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
-            osc.start(t); osc.stop(t + 1.4);
-          } catch (_) {}
-          scheduleMid();
-        }, Math.random() * 1000 + 800);
-      };
-      scheduleMid();
-
-      // Couche 3 : pulse basse régulière toutes les 1.5s (énergie rythmique)
-      const schedulePulse = () => {
-        if (!active) return;
-        setTimeout(() => {
-          if (!active) return;
-          try {
-            const osc = ctx.createOscillator();
-            const env = ctx.createGain();
-            osc.connect(env); env.connect(masterGain);
-            osc.type = 'sine';
-            osc.frequency.value = 196; // G3 - audible sur toutes enceintes
-            const t = ctx.currentTime;
-            env.gain.setValueAtTime(0.28, t);
-            env.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-            osc.start(t); osc.stop(t + 0.3);
-          } catch (_) {}
-          schedulePulse();
-        }, 1500);
-      };
-      schedulePulse();
-    }
+      step = (step + 1) % melody.length;
+      setTimeout(tick, stepMs);
+    };
+    setTimeout(tick, 100);
 
     return {
       setVolume: (v: number) => {

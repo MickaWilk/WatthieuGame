@@ -56,7 +56,28 @@
   background-size: 300% 300%;
 }
 
-.bubble-image {  
+@keyframes milestone-doom {
+  0%, 100% { box-shadow: 0 0 20px rgba(180, 0, 0, 0.7), 0 0 40px rgba(60, 0, 0, 0.5); transform: scale(1); }
+  50%       { box-shadow: 0 0 45px rgba(220, 0, 0, 1),   0 0 90px rgba(100, 0, 0, 0.85); transform: scale(1.05); }
+}
+.milestone-doom {
+  animation: milestone-doom 0.5s ease-in-out infinite;
+}
+
+@keyframes milestone-doom-max {
+  0%   { box-shadow: 0 0 30px #7f1d1d, 0 0 60px #000; transform: scale(1) rotate(-1deg); filter: brightness(0.9); }
+  25%  { transform: scale(1.04) rotate(1deg); }
+  50%  { box-shadow: 0 0 55px #b91c1c, 0 0 110px #450a0a; transform: scale(1.06) rotate(-1deg); filter: brightness(1.1); }
+  75%  { transform: scale(1.04) rotate(1deg); }
+  100% { box-shadow: 0 0 30px #7f1d1d, 0 0 60px #000; transform: scale(1) rotate(-1deg); filter: brightness(0.9); }
+}
+.milestone-doom-max {
+  animation: milestone-doom-max 0.4s ease-in-out infinite;
+  background: linear-gradient(135deg, #000000, #450a0a, #7f1d1d, #000000);
+  background-size: 300% 300%;
+}
+
+.bubble-image {
   width: 100%;  
   height: 100%;  
   object-fit: cover;  
