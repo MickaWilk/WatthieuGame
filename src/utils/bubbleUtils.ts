@@ -10,7 +10,5 @@ export const generateBubblePosition = (): BubblePosition => {
     delay: Math.random() * -5,
     xAmplitude: Math.random() * (window.innerWidth < 640 ? 60 : 140) + 30,
     yAmplitude: Math.random() * (window.innerWidth < 640 ? 50 : 110) + 25,
-    startDirectionX: Math.random() > 0.5 ? 1 : -1,
-    startDirectionY: Math.random() > 0.5 ? 1 : -1,
   };
 };

@@ -1,20 +1,7 @@
 export const getBubbleStyles = (points: number) => {
-  const borderColor = getBorderColor(points);
   const glowEffect = getGlowEffect(points);
   const scoreClass = getScoreClass(points);
-
-  return {
-    borderColor,
-    glowEffect,
-    scoreClass,
-  };
-};
-
-const getBorderColor = (points: number): string => {
-  if (points > 10) return 'border-green-400';
-  if (points > 0) return 'border-green-300';
-  if (points > -10) return 'border-red-300';
-  return 'border-red-500';
+  return { glowEffect, scoreClass };
 };
 
 const getGlowEffect = (points: number): string => {

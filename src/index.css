@@ -2,23 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
-.bubble {
-  animation: float 3s ease-in-out infinite;
-}
+/* Registered custom properties - permet l'interpolation smooth dans @keyframes (Chrome 85+) */
+@property --kx1 { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --ky1 { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --kx2 { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --ky2 { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --kx3 { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --ky3 { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --kx4 { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --ky4 { syntax: '<length>'; inherits: false; initial-value: 0px; }
 
-@keyframes float {
-  0%, 100% {
-    transform: translate(0, 0);
-  }
-  25% {
-    transform: translate(10px, -15px);
-  }
-  50% {
-    transform: translate(-5px, -25px);
-  }
-  75% {
-    transform: translate(-15px, -15px);
-  }
+@keyframes bubble-float {
+  0%   { transform: translate(0px, 0px); }
+  20%  { transform: translate(var(--kx1), var(--ky1)); }
+  40%  { transform: translate(var(--kx2), var(--ky2)); }
+  60%  { transform: translate(var(--kx3), var(--ky3)); }
+  80%  { transform: translate(var(--kx4), var(--ky4)); }
+  100% { transform: translate(0px, 0px); }
 }
 
 

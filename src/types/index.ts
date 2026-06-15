@@ -24,6 +24,4 @@ export interface BubblePosition {
   delay: number;
   xAmplitude: number;
   yAmplitude: number;
-  startDirectionX: number;
-  startDirectionY: number;
 }

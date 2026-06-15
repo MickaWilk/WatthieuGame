@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
-import { Bubble } from './components/Bubble';
-import { GameUI } from './components/GameUI';
-import { Friend, BubbleData, GameState } from './types';
-import { playPositiveEffect, playNegativeEffect, playTickSound, playComboSound, playMilestoneSound, playMilestoneConfetti, createAmbientMusic, AmbientMusic } from './utils/effects';
+import { Bubble } from '@/components/Bubble';
+import { GameUI } from '@/components/GameUI';
+import { Friend, BubbleData, GameState } from '@/types';
+import { playPositiveEffect, playNegativeEffect, playTickSound, playComboSound, playMilestoneSound, playMilestoneConfetti, createAmbientMusic, AmbientMusic } from '@/utils/effects';
 
 type ComboVariant = 'positive' | 'negative' | 'mixed';
 
@@ -23,7 +23,7 @@ const getComboMessage = (poppedPoints: number[]): { text: string; variant: Combo
   if (total < -20)            return { text: "C'était pas la bonne idée... 😬", variant: 'negative' };
   return { text: 'Combo raté de peu 😅', variant: 'mixed' };
 };
-import { generateBubblePosition } from './utils/bubbleUtils';
+import { generateBubblePosition } from '@/utils/bubbleUtils';
 
 const GAME_DURATION = 60;
 
