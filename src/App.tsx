@@ -88,7 +88,7 @@ const NEGATIVE_MILESTONES = [
   { threshold: -1500, message: "Sous-sol de l'humanité 👻" },
   { threshold: -2000, message: "Cas d'école de nullité 📉" },
   { threshold: -2500, message: "On étudiera ton cas en labo 🔬" },
-  { threshold: -3000, message: "LE PIRE HUMAIN DE L'HUMANITÉ. LE PLUS GROS NASE QUI N'AIT JAMAIS EXISTÉ. 🪦💩" },
+  { threshold: -3000, message: "LE PIRE HUMAIN DE L'HUMANITÉ. 🪦💩" },
 ];
 
 const getRandomSound = () => SOUND_URLS[Math.floor(Math.random() * SOUND_URLS.length)];
@@ -400,7 +400,7 @@ function App() {
       )}
 
       {milestoneToast && (
-        <div className="fixed bottom-6 right-6 z-50 pointer-events-none max-w-xs text-right">
+        <div className="fixed bottom-6 right-6 z-50 pointer-events-none max-w-sm text-center">
           <div className={milestoneToast.kind === 'negative'
             ? getNegativeMilestoneClasses(milestoneToast.level)
             : getMilestoneClasses(milestoneToast.level)}>
