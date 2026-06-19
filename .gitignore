@@ -26,3 +26,4 @@ dist-ssr
 # Claude Code - ne jamais committer sur un repo public
 CLAUDE.md
 .claude/
+*.stackdump
