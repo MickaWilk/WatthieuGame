@@ -26,7 +26,7 @@ export const GameUI: React.FC<GameUIProps> = ({ score, timeLeft, mutedMusic, mut
         <div className="mt-1 w-48 relative">
           <div className="h-2 rounded-full bg-white/10 relative overflow-hidden">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-green-400 via-yellow-400 to-orange-500 transition-all duration-300"
+              className="h-full rounded-full bg-linear-to-r from-green-400 via-yellow-400 to-orange-500 transition-all duration-300"
               style={{ width: `${pct}%` }}
             />
             {MILESTONES_THRESHOLDS.map(t => (

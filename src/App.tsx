@@ -108,22 +108,22 @@ const generateBubbles = (roster: Friend[]): BubbleData[] => {
 };
 
 const getMilestoneClasses = (level: number): string => {
-  if (level <= 1) return "text-sm px-4 py-2 rounded-xl font-semibold text-white bg-white/20 backdrop-blur border border-white/30";
-  if (level <= 3) return "text-base px-5 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-yellow-500/90 to-orange-500/90 shadow-lg";
-  if (level <= 4) return "text-lg px-6 py-3 rounded-xl font-extrabold text-white bg-gradient-to-r from-orange-500 to-red-500 shadow-xl shadow-orange-500/40 animate-pulse";
-  if (level <= 5) return "text-xl px-6 py-4 rounded-2xl font-extrabold text-white bg-gradient-to-r from-red-500 via-pink-500 to-purple-500 shadow-2xl shadow-pink-500/50 milestone-epic";
-  if (level === 6) return "text-2xl px-7 py-4 rounded-2xl font-extrabold text-white bg-gradient-to-r from-purple-400 via-pink-400 to-yellow-300 shadow-2xl milestone-epic";
-  if (level === 7) return "text-3xl px-8 py-5 rounded-2xl font-extrabold text-white bg-gradient-to-r from-yellow-300 via-orange-400 to-pink-500 shadow-2xl milestone-godlike";
+  if (level <= 1) return "text-sm px-4 py-2 rounded-xl font-semibold text-white bg-white/20 backdrop-blur-sm border border-white/30";
+  if (level <= 3) return "text-base px-5 py-3 rounded-xl font-bold text-white bg-linear-to-r from-yellow-500/90 to-orange-500/90 shadow-lg";
+  if (level <= 4) return "text-lg px-6 py-3 rounded-xl font-extrabold text-white bg-linear-to-r from-orange-500 to-red-500 shadow-xl shadow-orange-500/40 animate-pulse";
+  if (level <= 5) return "text-xl px-6 py-4 rounded-2xl font-extrabold text-white bg-linear-to-r from-red-500 via-pink-500 to-purple-500 shadow-2xl shadow-pink-500/50 milestone-epic";
+  if (level === 6) return "text-2xl px-7 py-4 rounded-2xl font-extrabold text-white bg-linear-to-r from-purple-400 via-pink-400 to-yellow-300 shadow-2xl milestone-epic";
+  if (level === 7) return "text-3xl px-8 py-5 rounded-2xl font-extrabold text-white bg-linear-to-r from-yellow-300 via-orange-400 to-pink-500 shadow-2xl milestone-godlike";
   return "text-4xl px-8 py-5 rounded-2xl font-extrabold text-white milestone-godlike-max";
 };
 
 const getNegativeMilestoneClasses = (level: number): string => {
-  if (level <= 1) return "text-sm px-4 py-2 rounded-xl font-semibold text-white bg-white/20 backdrop-blur border border-white/30";
-  if (level <= 3) return "text-base px-5 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-slate-600/90 to-zinc-700/90 shadow-lg";
-  if (level <= 4) return "text-lg px-6 py-3 rounded-xl font-extrabold text-white bg-gradient-to-r from-red-800 to-red-600 shadow-xl shadow-red-900/40 animate-pulse";
-  if (level <= 5) return "text-xl px-6 py-4 rounded-2xl font-extrabold text-white bg-gradient-to-r from-red-900 via-rose-800 to-stone-800 shadow-2xl shadow-red-900/50 milestone-doom";
-  if (level === 6) return "text-2xl px-7 py-4 rounded-2xl font-extrabold text-white bg-gradient-to-r from-stone-800 via-red-900 to-black shadow-2xl milestone-doom";
-  if (level === 7) return "text-3xl px-8 py-5 rounded-2xl font-extrabold text-white bg-gradient-to-r from-red-950 via-black to-red-900 shadow-2xl milestone-doom";
+  if (level <= 1) return "text-sm px-4 py-2 rounded-xl font-semibold text-white bg-white/20 backdrop-blur-sm border border-white/30";
+  if (level <= 3) return "text-base px-5 py-3 rounded-xl font-bold text-white bg-linear-to-r from-slate-600/90 to-zinc-700/90 shadow-lg";
+  if (level <= 4) return "text-lg px-6 py-3 rounded-xl font-extrabold text-white bg-linear-to-r from-red-800 to-red-600 shadow-xl shadow-red-900/40 animate-pulse";
+  if (level <= 5) return "text-xl px-6 py-4 rounded-2xl font-extrabold text-white bg-linear-to-r from-red-900 via-rose-800 to-stone-800 shadow-2xl shadow-red-900/50 milestone-doom";
+  if (level === 6) return "text-2xl px-7 py-4 rounded-2xl font-extrabold text-white bg-linear-to-r from-stone-800 via-red-900 to-black shadow-2xl milestone-doom";
+  if (level === 7) return "text-3xl px-8 py-5 rounded-2xl font-extrabold text-white bg-linear-to-r from-red-950 via-black to-red-900 shadow-2xl milestone-doom";
   return "text-4xl px-8 py-5 rounded-2xl font-extrabold text-white milestone-doom-max";
 };
 
@@ -304,13 +304,13 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 relative overflow-hidden">
+    <div className="min-h-screen bg-linear-to-br from-indigo-900 via-purple-900 to-slate-900 relative overflow-hidden">
       {!gameState.isPlaying && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-xs">
           <div className="bg-white/10 backdrop-blur-xl border border-white/20 text-white p-10 rounded-2xl text-center shadow-2xl max-w-sm w-full mx-4">
             {gameState.timeLeft === 0 ? (
               <>
-                <h1 className="text-4xl font-extrabold mb-2 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                <h1 className="text-4xl font-extrabold mb-2 bg-linear-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
                   Game Over !
                 </h1>
                 <p className="text-white/60 mb-4 text-sm">Temps &eacute;coul&eacute;</p>
@@ -331,7 +331,7 @@ function App() {
               </>
             ) : (
               <>
-                <h1 className="text-4xl font-extrabold mb-3 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                <h1 className="text-4xl font-extrabold mb-3 bg-linear-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
                   Bubble Pop !
                 </h1>
                 <p className="text-white/70 mb-6 text-base">
@@ -341,7 +341,7 @@ function App() {
             )}
             <button
               onClick={startGame}
-              className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-3 rounded-xl text-lg font-bold shadow-lg shadow-purple-500/30 hover:from-blue-600 hover:to-purple-600 hover:scale-105 transition-all duration-150 w-full"
+              className="bg-linear-to-r from-blue-500 to-purple-500 text-white px-8 py-3 rounded-xl text-lg font-bold shadow-lg shadow-purple-500/30 hover:from-blue-600 hover:to-purple-600 hover:scale-105 transition-all duration-150 w-full"
             >
               {gameState.timeLeft === 0 ? 'Rejouer' : 'Commencer'}
             </button>
@@ -389,7 +389,7 @@ function App() {
 
       {comboMessage && (
         <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50">
-          <div className={`text-3xl font-extrabold px-6 py-3 rounded-2xl shadow-2xl bg-black/70 backdrop-blur-sm border ${
+          <div className={`text-3xl font-extrabold px-6 py-3 rounded-2xl shadow-2xl bg-black/70 backdrop-blur-xs border ${
             comboMessage.variant === 'positive' ? 'text-yellow-300 border-yellow-500/50' :
             comboMessage.variant === 'negative' ? 'text-red-400 border-red-500/50' :
             'text-blue-300 border-blue-500/50'
