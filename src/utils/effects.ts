@@ -7,7 +7,7 @@ const NEGATIVE_COLORS = ['#ff0000', '#ff5500', '#ff8800'];
 let _ctx: AudioContext | null = null;
 const getCtx = (): AudioContext => {
   if (!_ctx || _ctx.state === 'closed') {
-    _ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    _ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
   }
   if (_ctx.state === 'suspended') {
     _ctx.resume();
@@ -50,24 +50,168 @@ export const playNegativeEffect = () => {
   frame();
 };
 
-const createCustomExplosion = (x: number, y: number, colors: string[], particleCount: number) => {
+// ─── Variantes d'explosion positives (vertes, festives) ───────────────────────
+
+// Variante 1 : Burst radial 360° - style de base, toutes directions
+const positiveBurst360 = (x: number, y: number, particleCount: number) => {
   confetti({
     particleCount,
     startVelocity: 20,
     spread: 360,
-    origin: { 
-      x: x / window.innerWidth,
-      y: y / window.innerHeight
-    },
-    colors,
-    ticks: 200
+    origin: { x: x / window.innerWidth, y: y / window.innerHeight },
+    colors: POSITIVE_COLORS,
+    ticks: 200,
   });
 };
 
+// Variante 2 : Fontaine verticale - jaillit vers le haut, spread étroit
+const positiveFountain = (x: number, y: number, particleCount: number) => {
+  confetti({
+    particleCount,
+    angle: 90,
+    spread: 28,
+    startVelocity: 45,
+    origin: { x: x / window.innerWidth, y: y / window.innerHeight },
+    colors: POSITIVE_COLORS,
+    ticks: 260,
+    gravity: 0.8,
+  });
+};
+
+// Variante 3 : Pluie d'étoiles - shapes star, scalaire large, longue durée
+const positiveStars = (x: number, y: number, particleCount: number) => {
+  confetti({
+    particleCount: Math.max(particleCount, 12),
+    spread: 180,
+    startVelocity: 18,
+    origin: { x: x / window.innerWidth, y: y / window.innerHeight },
+    colors: POSITIVE_COLORS,
+    shapes: ['star'],
+    scalar: 1.4,
+    ticks: 340,
+    gravity: 0.6,
+  });
+};
+
+// Variante 4 : Double canon latéral - deux tirs depuis le point, angles 60° et 120°
+const positiveDoubleCanon = (x: number, y: number, particleCount: number) => {
+  const origin = { x: x / window.innerWidth, y: y / window.innerHeight };
+  const half = Math.max(Math.floor(particleCount / 2), 6);
+  confetti({ particleCount: half, angle: 60,  spread: 35, startVelocity: 32, origin, colors: POSITIVE_COLORS, ticks: 220 });
+  confetti({ particleCount: half, angle: 120, spread: 35, startVelocity: 32, origin, colors: POSITIVE_COLORS, ticks: 220 });
+};
+
+// Variante 5 : Explosion scintillante lente - gravité faible, dérive, longue
+const positiveGlitter = (x: number, y: number, particleCount: number) => {
+  confetti({
+    particleCount: Math.max(particleCount, 14),
+    spread: 360,
+    startVelocity: 12,
+    origin: { x: x / window.innerWidth, y: y / window.innerHeight },
+    colors: POSITIVE_COLORS,
+    ticks: 320,
+    gravity: 0.4,
+    drift: 0.8,
+    scalar: 0.9,
+  });
+};
+
+const POSITIVE_VARIANTS = [
+  positiveBurst360,
+  positiveFountain,
+  positiveStars,
+  positiveDoubleCanon,
+  positiveGlitter,
+] as const;
+
+// ─── Variantes d'explosion négatives (rouges, sèches/lourdes) ─────────────────
+
+// Variante 1 : Explosion radiale rouge - style de base
+const negativeBurstRadial = (x: number, y: number, particleCount: number) => {
+  confetti({
+    particleCount,
+    startVelocity: 20,
+    spread: 360,
+    origin: { x: x / window.innerWidth, y: y / window.innerHeight },
+    colors: NEGATIVE_COLORS,
+    ticks: 200,
+  });
+};
+
+// Variante 2 : Burst sec et rapide - haute vélocité, ticks courts
+const negativeDryBurst = (x: number, y: number, particleCount: number) => {
+  confetti({
+    particleCount: Math.max(Math.floor(particleCount * 0.7), 8),
+    startVelocity: 50,
+    spread: 80,
+    origin: { x: x / window.innerWidth, y: y / window.innerHeight },
+    colors: NEGATIVE_COLORS,
+    ticks: 80,
+    gravity: 1.2,
+  });
+};
+
+// Variante 3 : Éclats lourds qui chutent - gravité forte, vers le bas
+const negativeHeavyFall = (x: number, y: number, particleCount: number) => {
+  confetti({
+    particleCount,
+    angle: 270,
+    spread: 100,
+    startVelocity: 22,
+    origin: { x: x / window.innerWidth, y: y / window.innerHeight },
+    colors: ['#8b0000', '#cc0000', '#ff0000', '#1a0000'],
+    ticks: 180,
+    gravity: 2.2,
+    scalar: 1.1,
+  });
+};
+
+// Variante 4 : Nuage dispersé terne - spread large, petites particules, peu nombreuses
+const negativeDullCloud = (x: number, y: number, particleCount: number) => {
+  confetti({
+    particleCount: Math.max(Math.floor(particleCount * 0.6), 6),
+    spread: 120,
+    startVelocity: 10,
+    origin: { x: x / window.innerWidth, y: y / window.innerHeight },
+    colors: ['#7f0000', '#991a00', '#aa3300'],
+    ticks: 140,
+    gravity: 1.0,
+    scalar: 0.7,
+  });
+};
+
+// Variante 5 : "Fumée" qui dérive et retombe - drift fort, ticks modérés
+const negativeSmokey = (x: number, y: number, particleCount: number) => {
+  confetti({
+    particleCount: Math.max(particleCount, 10),
+    spread: 60,
+    startVelocity: 14,
+    origin: { x: x / window.innerWidth, y: y / window.innerHeight },
+    colors: ['#660000', '#440000', '#ff2200', '#330000'],
+    ticks: 200,
+    gravity: 1.5,
+    drift: 1.4,
+    scalar: 0.85,
+  });
+};
+
+const NEGATIVE_VARIANTS = [
+  negativeBurstRadial,
+  negativeDryBurst,
+  negativeHeavyFall,
+  negativeDullCloud,
+  negativeSmokey,
+] as const;
+
 export const playBubbleEffect = (points: number, x: number, y: number) => {
-  const colors = points > 0 ? POSITIVE_COLORS : NEGATIVE_COLORS;
-  const particleCount = Math.abs(points) * 2;
-  createCustomExplosion(x, y, colors, particleCount);
+  const particleCount = Math.max(Math.abs(points) * 2, 8);
+  if (points > 0) {
+    const variant = POSITIVE_VARIANTS[Math.floor(Math.random() * POSITIVE_VARIANTS.length)];
+    variant(x, y, particleCount);
+  } else {
+    const variant = NEGATIVE_VARIANTS[Math.floor(Math.random() * NEGATIVE_VARIANTS.length)];
+    variant(x, y, particleCount);
+  }
 };
 
 export const playTickSound = () => {
@@ -301,20 +445,103 @@ export const createAmbientMusic = (type: 'home' | 'game'): AmbientMusic | null =
     noiseGain.connect(masterGain);
     noise.start();
 
-    // Joue une note ponctuelle
+    // ─── Batterie synthétisée ─────────────────────────────────────────────────
+
+    // Kick : sine avec sweep freq 150→50 Hz, enveloppe percussive ~0.15s
+    const playKick = () => {
+      const osc = ctx.createOscillator();
+      const env = ctx.createGain();
+      osc.connect(env);
+      env.connect(masterGain);
+      osc.type = 'sine';
+      const t = ctx.currentTime;
+      osc.frequency.setValueAtTime(150, t);
+      osc.frequency.exponentialRampToValueAtTime(50, t + 0.12);
+      const kickVol = type === 'game' ? 0.55 : 0.28;
+      env.gain.setValueAtTime(kickVol, t);
+      env.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    };
+
+    // Snare/clap : burst de bruit blanc filtré bandpass ~1.8kHz
+    const playSnare = () => {
+      const snareSize = ctx.sampleRate * 0.1;
+      const snareBuf = ctx.createBuffer(1, snareSize, ctx.sampleRate);
+      const sd = snareBuf.getChannelData(0);
+      for (let i = 0; i < snareSize; i++) sd[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource();
+      src.buffer = snareBuf;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 1800;
+      bp.Q.value = 1.2;
+      const env = ctx.createGain();
+      src.connect(bp);
+      bp.connect(env);
+      env.connect(masterGain);
+      const t = ctx.currentTime;
+      const snareVol = type === 'game' ? 0.35 : 0.16;
+      env.gain.setValueAtTime(snareVol, t);
+      env.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      src.start(t);
+      src.stop(t + 0.12);
+    };
+
+    // Hi-hat : burst de bruit high-pass ~8kHz, très court ~0.04s
+    const playHihat = (open = false) => {
+      const hatSize = ctx.sampleRate * 0.06;
+      const hatBuf = ctx.createBuffer(1, hatSize, ctx.sampleRate);
+      const hd = hatBuf.getChannelData(0);
+      for (let i = 0; i < hatSize; i++) hd[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource();
+      src.buffer = hatBuf;
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 7800;
+      hp.Q.value = 0.8;
+      const env = ctx.createGain();
+      src.connect(hp);
+      hp.connect(env);
+      env.connect(masterGain);
+      const t = ctx.currentTime;
+      const hatVol = type === 'game' ? 0.18 : 0.09;
+      const hatDecay = open ? 0.12 : 0.04;
+      env.gain.setValueAtTime(hatVol, t);
+      env.gain.exponentialRampToValueAtTime(0.001, t + hatDecay);
+      src.start(t);
+      src.stop(t + hatDecay + 0.01);
+    };
+
+    // ─── Mélodie et basse ────────────────────────────────────────────────────
+
+    // Joue une note ponctuelle (avec filtre lowpass synthwave en mode game)
     const playNote = (
       freq: number,
       wave: OscillatorType,
       attack: number,
       release: number,
       vel: number,
+      filterFreq?: number,
     ) => {
       if (freq <= 0) return;
       const osc = ctx.createOscillator();
       const env = ctx.createGain();
-      osc.connect(env); env.connect(masterGain);
       osc.type = wave;
       osc.frequency.value = freq;
+
+      if (filterFreq !== undefined) {
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = filterFreq;
+        lp.Q.value = 2.0;
+        osc.connect(lp);
+        lp.connect(env);
+      } else {
+        osc.connect(env);
+      }
+      env.connect(masterGain);
+
       const t = ctx.currentTime;
       env.gain.setValueAtTime(0, t);
       env.gain.linearRampToValueAtTime(vel, t + attack);
@@ -336,21 +563,47 @@ export const createAmbientMusic = (type: 'home' | 'game'): AmbientMusic | null =
       : [N.A2, N.F3, N.C3, N.E3];
 
     const stepMs = type === 'game' ? 200 : 380; // ~150 vs ~80 BPM (croches)
-    const melVel = type === 'game' ? 0.16 : 0.13;
+    // Mode game : sawtooth filtré pour grain synthwave mordant
+    // Mode home : triangle/sine doux
+    const melVel = type === 'game' ? 0.14 : 0.13;
     const melRelease = type === 'game' ? 0.45 : 1.0;
-    const melWave: OscillatorType = type === 'game' ? 'triangle' : 'sine';
+    const melWave: OscillatorType = type === 'game' ? 'sawtooth' : 'sine';
+    const melFilter = type === 'game' ? 1800 : undefined;
+    const bassWave: OscillatorType = type === 'game' ? 'square' : 'sine';
+    const bassFilter = type === 'game' ? 600 : undefined;
 
     let active = true;
     let step = 0;
     const tick = () => {
       if (!active) return;
-      const noteFreq = melody[step % melody.length];
-      playNote(noteFreq, melWave, 0.01, melRelease, melVel);
 
-      // Basse + accent rythmique sur le premier pas de chaque bar
+      const noteFreq = melody[step % melody.length];
+      playNote(noteFreq, melWave, 0.01, melRelease, melVel, melFilter);
+
+      // Basse + section rythmique sur les temps structurels
       if (step % 4 === 0) {
         const bass = bassline[(step / 4) % bassline.length];
-        playNote(bass, 'sine', 0.005, type === 'game' ? 0.6 : 1.1, type === 'game' ? 0.3 : 0.2);
+        const bassVel = type === 'game' ? 0.28 : 0.2;
+        const bassRelease = type === 'game' ? 0.6 : 1.1;
+        playNote(bass, bassWave, 0.005, bassRelease, bassVel, bassFilter);
+
+        // Kick sur les 4 temps (downbeats)
+        playKick();
+      }
+
+      // Snare/clap sur les contretemps (pas 4 et 12 dans le cycle 16)
+      if (step % 8 === 4) {
+        playSnare();
+      }
+
+      // Hi-hat : croches en mode game (chaque pas impair), discrets en home (chaque 2 pas impairs)
+      if (type === 'game') {
+        if (step % 2 === 1) playHihat(false);
+        // Open hi-hat sur les "et" de 3 et 4 pour groove synthwave
+        if (step % 16 === 11 || step % 16 === 15) playHihat(true);
+      } else {
+        // Home : hi-hat très léger sur les pas 2 et 6 de chaque cycle de 8
+        if (step % 8 === 2 || step % 8 === 6) playHihat(false);
       }
 
       step = (step + 1) % melody.length;
