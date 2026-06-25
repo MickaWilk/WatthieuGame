@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { BubbleData } from '@/types';
 import { playBubbleEffect } from '@/utils/effects';
 import { getBubbleStyles } from '@/utils/styles';
+import { playBubbleSound } from '@/utils/bubbleSound';
 
 interface BubbleProps {
   friend: BubbleData;
@@ -15,9 +16,7 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSf
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!mutedSfx) {
-      const audio = new Audio(friend.soundUrl);
-      audio.volume = 0.5;
-      audio.play().catch(e => console.log('Audio play failed:', e));
+      playBubbleSound(friend.soundUrl, 0.5);
     }
 
     const rect = event.currentTarget.getBoundingClientRect();
