@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Music, Volume2, VolumeX } from 'lucide-react';
 import { Bubble } from '@/components/Bubble';
 import { GameUI } from '@/components/GameUI';
-import { Friend, BubbleData, GameState } from '@/types';
-import { playPositiveEffect, playNegativeEffect, playTickSound, playComboSound, playMilestoneSound, playMilestoneConfetti, playMilestoneFailSound, playMilestoneFailConfetti, createAmbientMusic, AmbientMusic } from '@/utils/effects';
+import { Friend, BubbleData, GameState, BonusType } from '@/types';
+import { playPositiveEffect, playNegativeEffect, playTickSound, playComboSound, playMilestoneSound, playMilestoneConfetti, playMilestoneFailSound, playMilestoneFailConfetti, createAmbientMusic, AmbientMusic, playBubbleEffect } from '@/utils/effects';
 
 type ComboVariant = 'positive' | 'negative' | 'mixed';
 
@@ -99,12 +99,31 @@ const shuffleFriendPoints = (): Friend[] => {
   return friends.map((friend, i) => ({ ...friend, points: shuffled[i] }));
 };
 
+const BONUS_TYPES: BonusType[] = ['time', 'multiplier', 'megapop', 'goldrush'];
+
 const generateBubbles = (roster: Friend[]): BubbleData[] => {
-  return roster.map((friend) => ({
+  const base: BubbleData[] = roster.map((friend) => ({
     ...friend,
     soundUrl: getRandomSound(),
     position: generateBubblePosition(),
   }));
+
+  // 18% de chance de spawn d'une bulle bonus par vague
+  if (Math.random() < 0.18) {
+    const bonusType = BONUS_TYPES[Math.floor(Math.random() * BONUS_TYPES.length)];
+    const bonusBubble: BubbleData = {
+      id: 1000 + Math.floor(Math.random() * 100000),
+      name: 'BONUS',
+      imageUrl: '',
+      points: 0,
+      soundUrl: getRandomSound(),
+      position: generateBubblePosition(),
+      bonus: bonusType,
+    };
+    base.push(bonusBubble);
+  }
+
+  return base;
 };
 
 const getMilestoneClasses = (level: number): string => {
@@ -139,6 +158,9 @@ function App() {
   const [milestoneToast, setMilestoneToast] = useState<{ message: string; level: number; kind: 'positive' | 'negative' } | null>(null);
   const [mutedMusic, setMutedMusic] = useState(false);
   const [mutedSfx, setMutedSfx] = useState(false);
+  const [multiplierActive, setMultiplierActive] = useState(false);
+  const [goldRushActive, setGoldRushActive] = useState(false);
+  const [bonusToast, setBonusToast] = useState<string | null>(null);
 
   const isPlayingRef = useRef(false);
   const rosterRef = useRef<Friend[]>(friends);
@@ -151,6 +173,11 @@ function App() {
   const waveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const comboTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const milestoneTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scoreMultiplierRef = useRef<number>(1);
+  const goldRushRef = useRef<boolean>(false);
+  const multiplierTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const goldRushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bonusToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { isPlayingRef.current = gameState.isPlaying; }, [gameState.isPlaying]);
   useEffect(() => { currentScoreRef.current = gameState.score; }, [gameState.score]);
@@ -190,6 +217,12 @@ function App() {
     setMutedSfx(prev => !prev);
   };
 
+  const showBonusToast = (text: string) => {
+    if (bonusToastTimeoutRef.current) clearTimeout(bonusToastTimeoutRef.current);
+    setBonusToast(text);
+    bonusToastTimeoutRef.current = setTimeout(() => setBonusToast(null), 1800);
+  };
+
   const showComboFeedback = (points: number[]) => {
     const { text, variant } = getComboMessage(points);
     // Clear le timeout précédent pour ne pas couper un message qui vient d'apparaître
@@ -223,6 +256,15 @@ function App() {
     currentScoreRef.current = 0;
     waveClicksRef.current = 0;
     lastWavePointsRef.current = [];
+    // Réinitialise les bonus
+    scoreMultiplierRef.current = 1;
+    goldRushRef.current = false;
+    if (multiplierTimeoutRef.current) clearTimeout(multiplierTimeoutRef.current);
+    if (goldRushTimeoutRef.current) clearTimeout(goldRushTimeoutRef.current);
+    if (bonusToastTimeoutRef.current) clearTimeout(bonusToastTimeoutRef.current);
+    setMultiplierActive(false);
+    setGoldRushActive(false);
+    setBonusToast(null);
     const initialBubbles = generateBubbles(rosterRef.current);
     setBubbles(initialBubbles);
     setGameState({
@@ -245,6 +287,15 @@ function App() {
         }
         if (prev.timeLeft <= 1) {
           clearInterval(timerInterval);
+          // Nettoyage bonus
+          scoreMultiplierRef.current = 1;
+          goldRushRef.current = false;
+          if (multiplierTimeoutRef.current) clearTimeout(multiplierTimeoutRef.current);
+          if (goldRushTimeoutRef.current) clearTimeout(goldRushTimeoutRef.current);
+          if (bonusToastTimeoutRef.current) clearTimeout(bonusToastTimeoutRef.current);
+          setMultiplierActive(false);
+          setGoldRushActive(false);
+          setBonusToast(null);
           setSessionBest((best) => (best === null || prev.score > best ? prev.score : best));
           return { ...prev, timeLeft: 0, isPlaying: false };
         }
@@ -255,16 +306,98 @@ function App() {
     return () => {
       clearInterval(timerInterval);
       if (waveIntervalRef.current) clearInterval(waveIntervalRef.current);
+      if (multiplierTimeoutRef.current) clearTimeout(multiplierTimeoutRef.current);
+      if (goldRushTimeoutRef.current) clearTimeout(goldRushTimeoutRef.current);
+      if (bonusToastTimeoutRef.current) clearTimeout(bonusToastTimeoutRef.current);
     };
   }, [gameState.isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handlePop = (id: number, points: number) => {
-    // Confetti toujours visible (visuel non affecté par le mute SFX)
+  const handlePop = (id: number, points: number, bonus?: BonusType) => {
+    // ── Branche BONUS : traitement isolé, pas de scoring normal, pas de combo ──
+    if (bonus !== undefined) {
+      // playBonusSound est déclenché directement dans Bubble.tsx avant le onPop
+      setBubbles((prev) => prev.filter((b) => b.id !== id));
+
+      switch (bonus) {
+        case 'time': {
+          setGameState((prev) => ({ ...prev, timeLeft: prev.timeLeft + 5 }));
+          showBonusToast('⏱️ +5 SECONDES');
+          break;
+        }
+        case 'multiplier': {
+          scoreMultiplierRef.current = 2;
+          setMultiplierActive(true);
+          if (multiplierTimeoutRef.current) clearTimeout(multiplierTimeoutRef.current);
+          multiplierTimeoutRef.current = setTimeout(() => {
+            scoreMultiplierRef.current = 1;
+            setMultiplierActive(false);
+          }, 5000);
+          showBonusToast('✨ SCORE x2');
+          break;
+        }
+        case 'megapop': {
+          // Capture les bulles normales (points != 0, pas bonus) au moment du clic
+          setBubbles((prev) => {
+            const normalBubbles = prev.filter((b) => b.bonus === undefined && b.points !== 0);
+            const sum = normalBubbles.reduce((acc, b) => acc + Math.abs(b.points), 0);
+            if (sum > 0) {
+              // Effets visuels pour chaque bulle explosée
+              normalBubbles.forEach((b) => {
+                const cx = b.position.x + b.position.size / 2;
+                const cy = b.position.y + b.position.size / 2;
+                playBubbleEffect(b.points, cx, cy);
+              });
+              // Mise à jour score + milestone
+              const prevScore = currentScoreRef.current;
+              const newScore = prevScore + sum;
+              currentScoreRef.current = newScore;
+              setGameState((gs) => ({ ...gs, score: gs.score + sum }));
+              // Vérification milestone positif (un seul palier)
+              const posIdx = MILESTONES.findIndex(
+                (m) => prevScore < m.threshold && newScore >= m.threshold
+              );
+              if (posIdx !== -1) {
+                const duration = posIdx >= 6 ? 2500 : posIdx >= 4 ? 2000 : 1500;
+                if (milestoneTimeoutRef.current) clearTimeout(milestoneTimeoutRef.current);
+                setMilestoneToast({ message: MILESTONES[posIdx].message, level: posIdx, kind: 'positive' });
+                playMilestoneConfetti(posIdx);
+                if (!mutedSfxRef.current) playMilestoneSound(posIdx);
+                milestoneTimeoutRef.current = setTimeout(() => setMilestoneToast(null), duration);
+              }
+            }
+            // Retire toutes les bulles normales + la bulle bonus déjà retirée par le filtre id au-dessus
+            return prev.filter((b) => b.bonus !== undefined && b.id !== id);
+          });
+          showBonusToast('💥 MÉGA-POP');
+          break;
+        }
+        case 'goldrush': {
+          goldRushRef.current = true;
+          setGoldRushActive(true);
+          if (goldRushTimeoutRef.current) clearTimeout(goldRushTimeoutRef.current);
+          goldRushTimeoutRef.current = setTimeout(() => {
+            goldRushRef.current = false;
+            setGoldRushActive(false);
+          }, 4000);
+          showBonusToast('🪙 TOUT EN OR');
+          break;
+        }
+      }
+      return; // Pas de scoring normal, pas de combo
+    }
+
+    // ── Branche NORMALE ──────────────────────────────────────────────────────
+    // Scoring effectif : goldrush rend positif, multiplier double les gains positifs
+    let effective = points;
+    if (goldRushRef.current) effective = Math.abs(points);
+    if (scoreMultiplierRef.current > 1 && effective > 0) effective *= scoreMultiplierRef.current;
+
+    // Confetti basé sur le signe ORIGINAL des points (intention visuelle)
     if (points > 0) playPositiveEffect(points);
     else playNegativeEffect();
 
     const prevScore = currentScoreRef.current;
-    const newScore = prevScore + points;
+    const newScore = prevScore + effective;
     // Montée : palier de gloire ; descente : palier de honte (un seul franchi par pop)
     const posIndex = MILESTONES.findIndex(m => prevScore < m.threshold && newScore >= m.threshold);
     const negIndex = NEGATIVE_MILESTONES.findIndex(m => prevScore > m.threshold && newScore <= m.threshold);
@@ -286,12 +419,12 @@ function App() {
 
     setGameState((prev) => ({
       ...prev,
-      score: prev.score + points,
+      score: prev.score + effective,
     }));
 
     setBubbles((prev) => prev.filter((b) => b.id !== id));
 
-    lastWavePointsRef.current.push(points);
+    lastWavePointsRef.current.push(effective);
     waveClicksRef.current += 1;
 
     if (waveClicksRef.current >= 3) {
@@ -304,7 +437,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-indigo-900 via-purple-900 to-slate-900 relative overflow-hidden">
+    <div className="min-h-screen bg-linear-to-br from-indigo-900 via-purple-900 to-slate-900 relative overflow-hidden" data-goldrush={goldRushActive ? 'true' : undefined}>
       {!gameState.isPlaying && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-xs">
           <div className="bg-white/10 backdrop-blur-xl border border-white/20 text-white p-10 rounded-2xl text-center shadow-2xl max-w-sm w-full mx-4">
@@ -367,6 +500,21 @@ function App() {
 
       {gameState.isPlaying && (
         <>
+          {/* Voile doré gold rush */}
+          {goldRushActive && (
+            <div
+              className="absolute inset-0 pointer-events-none z-40"
+              style={{ background: 'rgba(251, 191, 36, 0.12)', mixBlendMode: 'screen' }}
+            />
+          )}
+          {/* Indicateur x2 multiplier */}
+          {multiplierActive && (
+            <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+              <div className="px-4 py-2 rounded-xl font-extrabold text-white text-lg bg-linear-to-r from-yellow-400 to-orange-400 shadow-lg shadow-yellow-500/40 animate-pulse">
+                SCORE ×2
+              </div>
+            </div>
+          )}
           <GameUI
             score={gameState.score}
             timeLeft={gameState.timeLeft}
@@ -385,6 +533,14 @@ function App() {
             />
           ))}
         </>
+      )}
+
+      {bonusToast && (
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50" style={{ paddingTop: '6rem' }}>
+          <div className="px-6 py-3 rounded-2xl font-extrabold text-white text-2xl shadow-2xl border border-yellow-400/60 bg-linear-to-r from-yellow-500/90 to-amber-500/90 backdrop-blur-xs animate-bounce">
+            {bonusToast}
+          </div>
+        </div>
       )}
 
       {comboMessage && (

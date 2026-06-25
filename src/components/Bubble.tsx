@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { BubbleData } from '@/types';
-import { playBubbleEffect } from '@/utils/effects';
+import { Sparkles } from 'lucide-react';
+import { BubbleData, BonusType } from '@/types';
+import { playBubbleEffect, playBonusSound } from '@/utils/effects';
 import { getBubbleStyles } from '@/utils/styles';
 import { playBubbleSound } from '@/utils/bubbleSound';
 
 interface BubbleProps {
   friend: BubbleData;
   position: BubbleData['position'];
-  onPop: (id: number, points: number) => void;
+  onPop: (id: number, points: number, bonus?: BonusType) => void;
   mutedSfx: boolean;
 }
 
@@ -17,6 +18,12 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSf
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!mutedSfx) {
       playBubbleSound(friend.soundUrl, 0.5);
+    }
+
+    if (friend.bonus) {
+      if (!mutedSfx) playBonusSound();
+      onPop(friend.id, friend.points, friend.bonus);
+      return;
     }
 
     const rect = event.currentTarget.getBoundingClientRect();
@@ -31,6 +38,8 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSf
   })), []);
 
   const { glowEffect, scoreClass } = getBubbleStyles(friend.points);
+
+  const isBonus = Boolean(friend.bonus);
 
   const gradientColors = friend.points >= 0
     ? 'from-green-300 via-green-500 to-green-700'
@@ -47,6 +56,8 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSf
     '--ky4': `${position.yAmplitude * kf[3].y}px`,
   } as React.CSSProperties;
 
+  const bonusGlow = 'drop-shadow(0 0 14px #fbbf24) drop-shadow(0 0 28px #f59e0b)';
+
   return (
     <>
       {/* Wrapper externe : gère le scale hover, séparé de l'animation float */}
@@ -57,7 +68,7 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSf
           top: `${position.y}px`,
           width: `${position.size}px`,
           height: `${position.size}px`,
-          transform: hovered ? 'scale(1.1)' : 'scale(1)',
+          transform: hovered ? 'scale(1.15)' : 'scale(1)',
           transition: 'transform 0.15s ease',
         }}
         onMouseEnter={() => setHovered(true)}
@@ -71,29 +82,47 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSf
             top: 0,
             width: `${position.size}px`,
             height: `${position.size}px`,
-            animation: `bubble-float ${position.speed}s ease-in-out infinite`,
+            animation: isBonus
+              ? `bubble-float ${position.speed}s ease-in-out infinite, bonus-pulse 1.2s ease-in-out infinite`
+              : `bubble-float ${position.speed}s ease-in-out infinite`,
             animationDelay: `${position.delay}s`,
-            filter: glowEffect,
+            filter: isBonus ? bonusGlow : glowEffect,
           }}
           onClick={handleClick}
         >
-          <div className={`w-full h-full rounded-full p-1 bg-linear-to-br ${gradientColors} ring-2 ring-white/30`}>
-            <div className={`absolute -top-2 -right-2 ${scoreClass} text-white rounded-full px-2 py-1 text-sm font-bold shadow-lg z-10`}>
-              {friend.points > 0 ? `+${friend.points}` : friend.points}
+          {isBonus ? (
+            /* Bulle bonus dorée - surprise, pas de label de type */
+            <div className="w-full h-full rounded-full flex items-center justify-center ring-4 ring-yellow-300/80"
+              style={{
+                background: 'radial-gradient(circle at 35% 35%, #fde68a, #f59e0b 50%, #b45309)',
+              }}
+            >
+              <Sparkles
+                style={{ width: '50%', height: '50%', color: '#ffffff', filter: 'drop-shadow(0 0 4px #fbbf24)' }}
+              />
             </div>
-            <img
-              src={friend.imageUrl}
-              alt={friend.name}
-              className="w-full h-full rounded-full object-cover"
-              draggable={false}
-            />
-          </div>
-          {/* Nom visible en bas de la bulle */}
+          ) : (
+            <div className={`w-full h-full rounded-full p-1 bg-linear-to-br ${gradientColors} ring-2 ring-white/30`}>
+              <div className={`absolute -top-2 -right-2 ${scoreClass} text-white rounded-full px-2 py-1 text-sm font-bold shadow-lg z-10`}>
+                {friend.points > 0 ? `+${friend.points}` : friend.points}
+              </div>
+              <img
+                src={friend.imageUrl}
+                alt={friend.name}
+                className="w-full h-full rounded-full object-cover"
+                draggable={false}
+              />
+            </div>
+          )}
+          {/* Nom visible en bas de la bulle (bonus : "BONUS ?" pour préserver la surprise) */}
           <div
-            className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-semibold text-white whitespace-nowrap"
-            style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}
+            className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-semibold whitespace-nowrap"
+            style={{
+              color: isBonus ? '#fbbf24' : '#ffffff',
+              textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+            }}
           >
-            {friend.name}
+            {isBonus ? '?' : friend.name}
           </div>
         </div>
       </div>

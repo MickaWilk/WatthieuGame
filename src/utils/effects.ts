@@ -375,6 +375,45 @@ export const playMilestoneFailConfetti = (level: number) => {
   });
 };
 
+// Son doré distinctif : arpège ascendant brillant type carillon (sine/triangle)
+export const playBonusSound = () => {
+  try {
+    const ctx = getCtx();
+    // 5 notes montantes : Mi3 Sol3 Si3 Re4 Fa#4 - arpège lumineux
+    const notes = [164.81, 196, 246.94, 293.66, 369.99];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      osc.type = i % 2 === 0 ? 'sine' : 'triangle';
+      osc.frequency.value = freq;
+      const t = ctx.currentTime + i * 0.09;
+      gainNode.gain.setValueAtTime(0.0, t);
+      gainNode.gain.linearRampToValueAtTime(0.28, t + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      osc.start(t);
+      osc.stop(t + 0.37);
+    });
+    // Scintillement final : accord de quinte en triangle, léger
+    const chord = [523.25, 783.99];
+    chord.forEach((freq) => {
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      const t = ctx.currentTime + 0.5;
+      gainNode.gain.setValueAtTime(0.0, t);
+      gainNode.gain.linearRampToValueAtTime(0.15, t + 0.03);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      osc.start(t);
+      osc.stop(t + 0.55);
+    });
+  } catch (_) { /* audio non bloquant */ }
+};
+
 export const playMilestoneConfetti = (level: number) => {
   if (level < 5) return;
   const epicColors = ['#FFD700', '#FF00FF', '#00FFFF', '#FF4500', '#FFFFFF'];

@@ -1,3 +1,5 @@
+export type BonusType = 'time' | 'multiplier' | 'megapop' | 'goldrush';
+
 export interface Friend {
   id: number;
   name: string;
@@ -8,6 +10,7 @@ export interface Friend {
 export interface BubbleData extends Friend {
   soundUrl: string;
   position: BubblePosition;
+  bonus?: BonusType;
 }
 
 export interface GameState {
