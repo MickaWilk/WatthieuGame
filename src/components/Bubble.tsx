@@ -10,9 +10,10 @@ interface BubbleProps {
   position: BubbleData['position'];
   onPop: (id: number, points: number, bonus?: BonusType) => void;
   mutedSfx: boolean;
+  goldRush: boolean;
 }
 
-export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSfx }) => {
+export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSfx, goldRush }) => {
   const [hovered, setHovered] = useState(false);
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -39,13 +40,19 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSf
     y: (Math.random() * 2 - 1),
   })));
 
-  const { glowEffect, scoreClass } = getBubbleStyles(friend.points);
+  const { glowEffect: baseGlowEffect, scoreClass: baseScoreClass } = getBubbleStyles(friend.points);
 
   const isBonus = Boolean(friend.bonus);
 
-  const gradientColors = friend.points >= 0
+  // Pendant le gold rush, les bulles d'amis passent toutes au vert
+  const goldRushOverride = goldRush && !isBonus;
+
+  const gradientColors = goldRushOverride || friend.points >= 0
     ? 'from-green-300 via-green-500 to-green-700'
     : 'from-red-300 via-red-500 to-red-700';
+
+  const glowEffect = goldRushOverride ? 'drop-shadow(0 0 12px #00ff00)' : baseGlowEffect;
+  const scoreClass = goldRushOverride ? 'bg-green-500' : baseScoreClass;
 
   const bubbleVars = {
     '--kx1': `${position.xAmplitude * kf[0].x}px`,
@@ -105,7 +112,7 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSf
           ) : (
             <div className={`w-full h-full rounded-full p-1 bg-linear-to-br ${gradientColors} ring-2 ring-white/30`}>
               <div className={`absolute -top-2 -right-2 ${scoreClass} text-white rounded-full px-2 py-1 text-sm font-bold shadow-lg z-10`}>
-                {friend.points > 0 ? `+${friend.points}` : friend.points}
+                {goldRushOverride ? `+${Math.abs(friend.points)}` : (friend.points > 0 ? `+${friend.points}` : friend.points)}
               </div>
               <img
                 src={friend.imageUrl}

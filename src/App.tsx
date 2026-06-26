@@ -378,8 +378,9 @@ function App() {
             setGameState((gs) => ({ ...gs, score: gs.score + sum }));
             celebrateMilestones(prevScore, newScore);
           }
-          // Retire toutes les bulles normales + la bulle bonus cliquée (updater pur)
-          setBubbles((prev) => prev.filter((b) => b.bonus !== undefined && b.id !== id));
+          // Régénère une vague complète et repart le timer (comme le combo)
+          doWave();
+          resetWaveTimer();
           showBonusToast('💥 MÉGA-POP');
           break;
         }
@@ -390,7 +391,7 @@ function App() {
           goldRushTimeoutRef.current = setTimeout(() => {
             goldRushRef.current = false;
             setGoldRushActive(false);
-          }, 4000);
+          }, 5000);
           showBonusToast('🪙 TOUT EN OR');
           break;
         }
@@ -498,13 +499,13 @@ function App() {
           {goldRushActive && (
             <div
               className="absolute inset-0 pointer-events-none z-40"
-              style={{ background: 'rgba(251, 191, 36, 0.12)', mixBlendMode: 'screen' }}
+              style={{ background: 'rgba(251, 191, 36, 0.18)', mixBlendMode: 'screen' }}
             />
           )}
           {/* Indicateur x2 multiplier */}
           {multiplierActive && (
             <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
-              <div className="px-4 py-2 rounded-xl font-extrabold text-white text-lg bg-linear-to-r from-yellow-400 to-orange-400 shadow-lg shadow-yellow-500/40 animate-pulse">
+              <div className="px-5 py-3 rounded-xl font-extrabold text-white text-xl bg-linear-to-r from-yellow-400 to-orange-400 shadow-lg shadow-yellow-500/40 animate-pulse">
                 SCORE ×2
               </div>
             </div>
@@ -525,6 +526,7 @@ function App() {
               position={bubble.position}
               onPop={handlePop}
               mutedSfx={mutedSfx}
+              goldRush={goldRushActive}
             />
           ))}
         </>
