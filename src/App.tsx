@@ -3,7 +3,7 @@ import { Music, Volume2, VolumeX } from 'lucide-react';
 import { Bubble } from '@/components/Bubble';
 import { GameUI } from '@/components/GameUI';
 import { Friend, BubbleData, GameState, BonusType } from '@/types';
-import { playPositiveEffect, playNegativeEffect, playTickSound, playComboSound, playMilestoneSound, playMilestoneConfetti, playMilestoneFailSound, playMilestoneFailConfetti, createAmbientMusic, AmbientMusic, playBubbleEffect } from '@/utils/effects';
+import { playTickSound, playComboSound, playMilestoneSound, playMilestoneFailSound, createAmbientMusic, AmbientMusic, playBubbleEffect } from '@/utils/effects';
 import { generateBubblePosition } from '@/utils/bubbleUtils';
 import { MILESTONES, NEGATIVE_MILESTONES } from '@/utils/milestones';
 
@@ -135,6 +135,7 @@ function App() {
   const [multiplierActive, setMultiplierActive] = useState(false);
   const [goldRushActive, setGoldRushActive] = useState(false);
   const [bonusToast, setBonusToast] = useState<string | null>(null);
+  const [topMilestone, setTopMilestone] = useState<{ threshold: number; level: number } | null>(null);
 
   const isPlayingRef = useRef(false);
   const rosterRef = useRef<Friend[]>(friends);
@@ -156,6 +157,9 @@ function App() {
   const bonusToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Ref stable vers les bulles courantes pour lecture synchrone (évite les effets de bord dans setBubbles)
   const bubblesRef = useRef<BubbleData[]>([]);
+  // Refs monotones pour anti-rejeu des paliers (tâche 2)
+  const maxScoreReachedRef = useRef(0);
+  const minScoreReachedRef = useRef(0);
 
   useEffect(() => { isPlayingRef.current = gameState.isPlaying; }, [gameState.isPlaying]);
   useEffect(() => { mutedSfxRef.current = mutedSfx; }, [mutedSfx]);
@@ -236,6 +240,9 @@ function App() {
     setMultiplierActive(false);
     setGoldRushActive(false);
     setBonusToast(null);
+    maxScoreReachedRef.current = 0;
+    minScoreReachedRef.current = 0;
+    setTopMilestone(null);
     const initialBubbles = generateBubbles(rosterRef.current);
     setBubbles(initialBubbles);
     setGameState({
@@ -296,6 +303,39 @@ function App() {
     }
   }, [gameState.isPlaying, gameState.timeLeft, gameState.score]);
 
+  // Détection de palier unique par partie - anti-rejeu via refs monotones
+  const celebrateMilestones = (prevScore: number, newScore: number) => {
+    // Montée : paliers positifs nouvellement franchis (au-dessus du max déjà atteint)
+    const prevMax = maxScoreReachedRef.current;
+    const newPos = MILESTONES.filter(m => m.threshold > prevMax && m.threshold <= newScore);
+    if (newPos.length > 0) {
+      const top = newPos[newPos.length - 1];            // le plus haut franchi
+      const level = MILESTONES.findIndex(m => m.threshold === top.threshold);
+      const duration = level >= 6 ? 2500 : level >= 4 ? 2000 : 1500;
+      if (milestoneTimeoutRef.current) clearTimeout(milestoneTimeoutRef.current);
+      setMilestoneToast({ message: top.message, level, kind: 'positive' });
+      if (!mutedSfxRef.current) playMilestoneSound(level);
+      milestoneTimeoutRef.current = setTimeout(() => setMilestoneToast(null), duration);
+      // Badge persistant uniquement pour paliers spéciaux (seuil >= 1000)
+      if (top.threshold >= 1000) setTopMilestone({ threshold: top.threshold, level });
+    }
+    if (newScore > prevMax) maxScoreReachedRef.current = newScore;
+
+    // Descente : paliers négatifs nouvellement franchis (sous le min déjà atteint)
+    const prevMin = minScoreReachedRef.current;
+    const newNeg = NEGATIVE_MILESTONES.filter(m => m.threshold < prevMin && m.threshold >= newScore);
+    if (newNeg.length > 0) {
+      const bottom = newNeg[newNeg.length - 1];          // le plus bas franchi
+      const level = NEGATIVE_MILESTONES.findIndex(m => m.threshold === bottom.threshold);
+      const duration = level >= 6 ? 2500 : level >= 4 ? 2000 : 1500;
+      if (milestoneTimeoutRef.current) clearTimeout(milestoneTimeoutRef.current);
+      setMilestoneToast({ message: bottom.message, level, kind: 'negative' });
+      if (!mutedSfxRef.current) playMilestoneFailSound(level);
+      milestoneTimeoutRef.current = setTimeout(() => setMilestoneToast(null), duration);
+    }
+    if (newScore < prevMin) minScoreReachedRef.current = newScore;
+  };
+
   const handlePop = (id: number, points: number, bonus?: BonusType) => {
     // ── Branche BONUS : traitement isolé, pas de scoring normal, pas de combo ──
     if (bonus !== undefined) {
@@ -336,18 +376,7 @@ function App() {
             const newScore = prevScore + sum;
             currentScoreRef.current = newScore;
             setGameState((gs) => ({ ...gs, score: gs.score + sum }));
-            // Vérification milestone positif (un seul palier)
-            const posIdx = MILESTONES.findIndex(
-              (m) => prevScore < m.threshold && newScore >= m.threshold
-            );
-            if (posIdx !== -1) {
-              const duration = posIdx >= 6 ? 2500 : posIdx >= 4 ? 2000 : 1500;
-              if (milestoneTimeoutRef.current) clearTimeout(milestoneTimeoutRef.current);
-              setMilestoneToast({ message: MILESTONES[posIdx].message, level: posIdx, kind: 'positive' });
-              playMilestoneConfetti(posIdx);
-              if (!mutedSfxRef.current) playMilestoneSound(posIdx);
-              milestoneTimeoutRef.current = setTimeout(() => setMilestoneToast(null), duration);
-            }
+            celebrateMilestones(prevScore, newScore);
           }
           // Retire toutes les bulles normales + la bulle bonus cliquée (updater pur)
           setBubbles((prev) => prev.filter((b) => b.bonus !== undefined && b.id !== id));
@@ -375,33 +404,12 @@ function App() {
     if (goldRushRef.current) effective = Math.abs(points);
     if (scoreMultiplierRef.current > 1 && effective > 0) effective *= scoreMultiplierRef.current;
 
-    // Confetti basé sur le signe ORIGINAL des points (intention visuelle)
-    if (points > 0) playPositiveEffect(points);
-    else playNegativeEffect();
-
     const prevScore = currentScoreRef.current;
     const newScore = prevScore + effective;
     // Mise à jour synchrone de la ref - évite le double-tap milestone (une frame de retard avec useEffect seul)
     currentScoreRef.current = newScore;
 
-    // Montée : palier de gloire ; descente : palier de honte (un seul franchi par pop)
-    const posIndex = MILESTONES.findIndex(m => prevScore < m.threshold && newScore >= m.threshold);
-    const negIndex = NEGATIVE_MILESTONES.findIndex(m => prevScore > m.threshold && newScore <= m.threshold);
-    if (posIndex !== -1) {
-      const duration = posIndex >= 6 ? 2500 : posIndex >= 4 ? 2000 : 1500;
-      if (milestoneTimeoutRef.current) clearTimeout(milestoneTimeoutRef.current);
-      setMilestoneToast({ message: MILESTONES[posIndex].message, level: posIndex, kind: 'positive' });
-      playMilestoneConfetti(posIndex);
-      if (!mutedSfxRef.current) playMilestoneSound(posIndex);
-      milestoneTimeoutRef.current = setTimeout(() => setMilestoneToast(null), duration);
-    } else if (negIndex !== -1) {
-      const duration = negIndex >= 6 ? 2500 : negIndex >= 4 ? 2000 : 1500;
-      if (milestoneTimeoutRef.current) clearTimeout(milestoneTimeoutRef.current);
-      setMilestoneToast({ message: NEGATIVE_MILESTONES[negIndex].message, level: negIndex, kind: 'negative' });
-      playMilestoneFailConfetti(negIndex);
-      if (!mutedSfxRef.current) playMilestoneFailSound(negIndex);
-      milestoneTimeoutRef.current = setTimeout(() => setMilestoneToast(null), duration);
-    }
+    celebrateMilestones(prevScore, newScore);
 
     setGameState((prev) => ({
       ...prev,
@@ -508,6 +516,7 @@ function App() {
             mutedSfx={mutedSfx}
             onToggleMusic={handleToggleMusic}
             onToggleSfx={handleToggleSfx}
+            topMilestone={topMilestone}
           />
           {bubbles.map((bubble) => (
             <Bubble

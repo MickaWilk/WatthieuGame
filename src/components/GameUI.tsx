@@ -9,18 +9,37 @@ interface GameUIProps {
   mutedSfx: boolean;
   onToggleMusic: () => void;
   onToggleSfx: () => void;
+  topMilestone: { threshold: number; level: number } | null;
 }
 
-export const GameUI: React.FC<GameUIProps> = ({ score, timeLeft, mutedMusic, mutedSfx, onToggleMusic, onToggleSfx }) => {
+export const GameUI: React.FC<GameUIProps> = ({ score, timeLeft, mutedMusic, mutedSfx, onToggleMusic, onToggleSfx, topMilestone }) => {
   const isUrgent = timeLeft <= 10;
 
   const clampedScore = Math.max(0, Math.min(score, MAX_SCORE));
   const pct = (clampedScore / MAX_SCORE) * 100;
 
+  const badgeClass = topMilestone
+    ? topMilestone.level >= 8
+      ? 'milestone-godlike-max'
+      : topMilestone.level >= 7
+        ? 'milestone-godlike'
+        : 'milestone-epic'
+    : '';
+
   return (
     <div className="fixed top-0 left-0 right-0 p-4 bg-black/30 backdrop-blur-md flex justify-between items-center border-b border-white/10">
       <div>
-        <div className="text-2xl font-bold text-white">Score: {score}</div>
+        <div className="flex items-center gap-2">
+          <div className="text-2xl font-bold text-white">Score: {score}</div>
+          {topMilestone && (
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-sm font-bold text-yellow-300 border border-yellow-500/50 bg-yellow-500/10 ${badgeClass}`}
+              title={`Palier ${topMilestone.threshold} atteint`}
+            >
+              &#x1F3C6; {topMilestone.threshold}
+            </span>
+          )}
+        </div>
         <div className="mt-1 w-48 relative">
           <div className="h-2 rounded-full bg-white/10 relative overflow-hidden">
             <div

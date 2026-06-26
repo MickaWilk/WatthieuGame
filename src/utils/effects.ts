@@ -15,104 +15,75 @@ const getCtx = (): AudioContext => {
   return _ctx;
 };
 
-const createExplosion = (angle: number, origin: { x: number }) => {
-  confetti({
-    particleCount: 7,
-    angle,
-    spread: 55,
-    origin,
-    colors: NEGATIVE_COLORS
-  });
-};
-
-export const playPositiveEffect = (points: number) => {
-  const intensity = Math.min(points / 5, 2);
-  confetti({
-    particleCount: Math.floor(50 * intensity),
-    spread: 70,
-    origin: { y: 0.6 },
-    colors: POSITIVE_COLORS,
-  });
-};
-
-export const playNegativeEffect = () => {
-  const end = Date.now() + 200;
-
-  const frame = () => {
-    createExplosion(60, { x: 0 });
-    createExplosion(120, { x: 1 });
-
-    if (Date.now() < end) {
-      requestAnimationFrame(frame);
-    }
-  };
-
-  frame();
-};
-
 // ─── Variantes d'explosion positives (vertes, festives) ───────────────────────
 
-// Variante 1 : Burst radial 360° - style de base, toutes directions
+// Variante 1 : Burst radial 360° - cercles, toutes directions, vitesse moyenne
 const positiveBurst360 = (x: number, y: number, particleCount: number) => {
   confetti({
     particleCount,
-    startVelocity: 20,
+    startVelocity: 22,
     spread: 360,
     origin: { x: x / window.innerWidth, y: y / window.innerHeight },
     colors: POSITIVE_COLORS,
+    shapes: ['circle'],
+    scalar: 0.8,
     ticks: 200,
   });
 };
 
-// Variante 2 : Fontaine verticale - jaillit vers le haut, spread étroit
+// Variante 2 : Fontaine verticale - carrés compacts, jet étroit vers le haut
 const positiveFountain = (x: number, y: number, particleCount: number) => {
   confetti({
     particleCount,
     angle: 90,
-    spread: 28,
-    startVelocity: 45,
+    spread: 20,
+    startVelocity: 55,
     origin: { x: x / window.innerWidth, y: y / window.innerHeight },
     colors: POSITIVE_COLORS,
-    ticks: 260,
-    gravity: 0.8,
+    shapes: ['square'],
+    scalar: 1.0,
+    ticks: 280,
+    gravity: 0.7,
   });
 };
 
-// Variante 3 : Pluie d'étoiles - shapes star, scalaire large, longue durée
+// Variante 3 : Pluie d'étoiles lente - grandes étoiles, flottement, longue durée
 const positiveStars = (x: number, y: number, particleCount: number) => {
   confetti({
     particleCount: Math.max(particleCount, 12),
-    spread: 180,
-    startVelocity: 18,
+    spread: 200,
+    startVelocity: 10,
     origin: { x: x / window.innerWidth, y: y / window.innerHeight },
     colors: POSITIVE_COLORS,
     shapes: ['star'],
-    scalar: 1.4,
-    ticks: 340,
-    gravity: 0.6,
+    scalar: 1.8,
+    ticks: 400,
+    gravity: 0.3,
+    drift: 0.4,
   });
 };
 
-// Variante 4 : Double canon latéral - deux tirs depuis le point, angles 60° et 120°
+// Variante 4 : Double canon latéral - étoiles petites, deux jets symétriques rapides
 const positiveDoubleCanon = (x: number, y: number, particleCount: number) => {
   const origin = { x: x / window.innerWidth, y: y / window.innerHeight };
   const half = Math.max(Math.floor(particleCount / 2), 6);
-  confetti({ particleCount: half, angle: 60,  spread: 35, startVelocity: 32, origin, colors: POSITIVE_COLORS, ticks: 220 });
-  confetti({ particleCount: half, angle: 120, spread: 35, startVelocity: 32, origin, colors: POSITIVE_COLORS, ticks: 220 });
+  confetti({ particleCount: half, angle: 55,  spread: 28, startVelocity: 42, origin, colors: POSITIVE_COLORS, shapes: ['star'], scalar: 0.7, ticks: 220 });
+  confetti({ particleCount: half, angle: 125, spread: 28, startVelocity: 42, origin, colors: POSITIVE_COLORS, shapes: ['star'], scalar: 0.7, ticks: 220 });
 };
 
-// Variante 5 : Explosion scintillante lente - gravité faible, dérive, longue
+// Variante 5 : Explosion scintillante lente - mix cercles/carrés, large dérive, très longue
 const positiveGlitter = (x: number, y: number, particleCount: number) => {
   confetti({
     particleCount: Math.max(particleCount, 14),
     spread: 360,
-    startVelocity: 12,
+    startVelocity: 8,
     origin: { x: x / window.innerWidth, y: y / window.innerHeight },
     colors: POSITIVE_COLORS,
-    ticks: 320,
-    gravity: 0.4,
-    drift: 0.8,
-    scalar: 0.9,
+    shapes: ['circle', 'square'],
+    ticks: 380,
+    gravity: 0.2,
+    drift: 1.6,
+    scalar: 1.1,
   });
 };
 
@@ -126,72 +97,79 @@ const POSITIVE_VARIANTS = [
 
 // ─── Variantes d'explosion négatives (rouges, sèches/lourdes) ─────────────────
 
-// Variante 1 : Explosion radiale rouge - style de base
+// Variante 1 : Explosion radiale rouge - carrés, toutes directions, standard
 const negativeBurstRadial = (x: number, y: number, particleCount: number) => {
   confetti({
     particleCount,
-    startVelocity: 20,
+    startVelocity: 22,
     spread: 360,
     origin: { x: x / window.innerWidth, y: y / window.innerHeight },
     colors: NEGATIVE_COLORS,
+    shapes: ['square'],
+    scalar: 1.0,
     ticks: 200,
   });
 };
 
-// Variante 2 : Burst sec et rapide - haute vélocité, ticks courts
+// Variante 2 : Burst sec et rapide - cercles minuscules, très haute vélocité, vie courte
 const negativeDryBurst = (x: number, y: number, particleCount: number) => {
   confetti({
     particleCount: Math.max(Math.floor(particleCount * 0.7), 8),
-    startVelocity: 50,
-    spread: 80,
+    startVelocity: 65,
+    spread: 70,
     origin: { x: x / window.innerWidth, y: y / window.innerHeight },
     colors: NEGATIVE_COLORS,
-    ticks: 80,
-    gravity: 1.2,
+    shapes: ['circle'],
+    scalar: 0.5,
+    ticks: 70,
+    gravity: 1.5,
   });
 };
 
-// Variante 3 : Éclats lourds qui chutent - gravité forte, vers le bas
+// Variante 3 : Éclats lourds qui chutent - grandes étoiles sombres, gravité écrasante
 const negativeHeavyFall = (x: number, y: number, particleCount: number) => {
   confetti({
     particleCount,
     angle: 270,
-    spread: 100,
-    startVelocity: 22,
+    spread: 90,
+    startVelocity: 18,
     origin: { x: x / window.innerWidth, y: y / window.innerHeight },
     colors: ['#8b0000', '#cc0000', '#ff0000', '#1a0000'],
-    ticks: 180,
-    gravity: 2.2,
-    scalar: 1.1,
+    shapes: ['star'],
+    ticks: 160,
+    gravity: 2.8,
+    scalar: 1.4,
   });
 };
 
-// Variante 4 : Nuage dispersé terne - spread large, petites particules, peu nombreuses
+// Variante 4 : Nuage dispersé terne - minuscules carrés sombres, spread très large, lents
 const negativeDullCloud = (x: number, y: number, particleCount: number) => {
   confetti({
     particleCount: Math.max(Math.floor(particleCount * 0.6), 6),
-    spread: 120,
-    startVelocity: 10,
+    spread: 160,
+    startVelocity: 7,
     origin: { x: x / window.innerWidth, y: y / window.innerHeight },
     colors: ['#7f0000', '#991a00', '#aa3300'],
-    ticks: 140,
-    gravity: 1.0,
-    scalar: 0.7,
+    shapes: ['square'],
+    ticks: 150,
+    gravity: 0.8,
+    scalar: 0.55,
   });
 };
 
-// Variante 5 : "Fumée" qui dérive et retombe - drift fort, ticks modérés
+// Variante 5 : "Fumée" lourde - mix étoiles/cercles, dérive prononcée, chute rapide
 const negativeSmokey = (x: number, y: number, particleCount: number) => {
   confetti({
     particleCount: Math.max(particleCount, 10),
-    spread: 60,
-    startVelocity: 14,
+    spread: 50,
+    startVelocity: 16,
     origin: { x: x / window.innerWidth, y: y / window.innerHeight },
     colors: ['#660000', '#440000', '#ff2200', '#330000'],
-    ticks: 200,
-    gravity: 1.5,
-    drift: 1.4,
-    scalar: 0.85,
+    shapes: ['star', 'circle'],
+    ticks: 190,
+    gravity: 2.0,
+    drift: 2.0,
+    scalar: 0.75,
   });
 };
 
@@ -359,22 +337,6 @@ export const playMilestoneFailSound = (level: number) => {
   } catch { /* audio non bloquant */ }
 };
 
-export const playMilestoneFailConfetti = (level: number) => {
-  if (level < 4) return;
-  const dark = ['#4b5563', '#1f2937', '#7f1d1d', '#451a03', '#000000'];
-  // Pluie morne qui tombe depuis le haut
-  confetti({
-    particleCount: 40 + level * 15,
-    spread: 80 + level * 8,
-    startVelocity: 12,
-    origin: { x: 0.88, y: 0.1 },
-    colors: dark,
-    gravity: 1.4,
-    ticks: 200 + level * 30,
-    scalar: 0.9,
-  });
-};
-
 // Son doré distinctif : arpège ascendant brillant type carillon (sine/triangle)
 export const playBonusSound = () => {
   try {
@@ -412,34 +374,6 @@ export const playBonusSound = () => {
       osc.stop(t + 0.55);
     });
   } catch { /* audio non bloquant */ }
-};
-
-export const playMilestoneConfetti = (level: number) => {
-  if (level < 5) return;
-  const epicColors = ['#FFD700', '#FF00FF', '#00FFFF', '#FF4500', '#FFFFFF'];
-  const warmColors = ['#FFD700', '#FFA500', '#FF6347', '#FFFFFF'];
-  const colors = level >= 7 ? epicColors : warmColors;
-
-  confetti({
-    particleCount: 60 + level * 25,
-    spread: 90 + level * 10,
-    startVelocity: 38 + level * 4,
-    origin: { x: 0.88, y: 0.88 },
-    colors,
-    ticks: 200 + level * 40,
-  });
-
-  if (level >= 7) {
-    setTimeout(() => confetti({
-      particleCount: 300,
-      spread: 360,
-      startVelocity: 65,
-      origin: { x: 0.5, y: 0.4 },
-      colors,
-      ticks: 500,
-      gravity: 0.7,
-    }), 200);
-  }
 };
 
 export interface AmbientMusic {
