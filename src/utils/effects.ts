@@ -228,7 +228,7 @@ export const playTickSound = () => {
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
     osc.start(t);
     osc.stop(t + 0.08);
-  } catch (_) { /* audio non bloquant */ }
+  } catch { /* audio non bloquant */ }
 };
 
 export const playComboSound = (variant: 'positive' | 'negative' | 'mixed' = 'positive') => {
@@ -252,7 +252,7 @@ export const playComboSound = (variant: 'positive' | 'negative' | 'mixed' = 'pos
       osc.start(t);
       osc.stop(t + 0.25);
     });
-  } catch (_) { /* audio non bloquant */ }
+  } catch { /* audio non bloquant */ }
 };
 
 export const playMilestoneSound = (level: number) => {
@@ -318,7 +318,7 @@ export const playMilestoneSound = (level: number) => {
         osc.stop(t + 0.3);
       });
     }
-  } catch (_) { /* audio non bloquant */ }
+  } catch { /* audio non bloquant */ }
 };
 
 // Son d'humiliation : descente sawtooth qui s'effondre, façon "trombone triste"
@@ -356,7 +356,7 @@ export const playMilestoneFailSound = (level: number) => {
       osc.start(now + 0.5);
       osc.stop(now + 0.95);
     }
-  } catch (_) { /* audio non bloquant */ }
+  } catch { /* audio non bloquant */ }
 };
 
 export const playMilestoneFailConfetti = (level: number) => {
@@ -411,7 +411,7 @@ export const playBonusSound = () => {
       osc.start(t);
       osc.stop(t + 0.55);
     });
-  } catch (_) { /* audio non bloquant */ }
+  } catch { /* audio non bloquant */ }
 };
 
 export const playMilestoneConfetti = (level: number) => {
@@ -657,10 +657,10 @@ export const createAmbientMusic = (type: 'home' | 'game'): AmbientMusic | null =
       stop: () => {
         active = false;
         masterGain.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
-        setTimeout(() => { try { noise.stop(); } catch (_) {} }, 2000);
+        setTimeout(() => { try { noise.stop(); } catch { /* ignore */ } }, 2000);
       }
     };
-  } catch (_) {
+  } catch {
     return null;
   }
 };

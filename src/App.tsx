@@ -4,6 +4,8 @@ import { Bubble } from '@/components/Bubble';
 import { GameUI } from '@/components/GameUI';
 import { Friend, BubbleData, GameState, BonusType } from '@/types';
 import { playPositiveEffect, playNegativeEffect, playTickSound, playComboSound, playMilestoneSound, playMilestoneConfetti, playMilestoneFailSound, playMilestoneFailConfetti, createAmbientMusic, AmbientMusic, playBubbleEffect } from '@/utils/effects';
+import { generateBubblePosition } from '@/utils/bubbleUtils';
+import { MILESTONES, NEGATIVE_MILESTONES } from '@/utils/milestones';
 
 type ComboVariant = 'positive' | 'negative' | 'mixed';
 
@@ -38,12 +40,11 @@ const getComboMessage = (poppedPoints: number[]): { text: string; variant: Combo
   if (total >= 35) return { text: 'Très bien joué ! 🔥', variant: 'positive' };
   if (total >= 20) return { text: 'Combo solide 😎', variant: 'mixed' };
   if (total >= 5)  return { text: 'Combo correct 👍', variant: 'mixed' };
-  if (total >= -5) return { text: 'Pile à l’équilibre ⚖️', variant: 'mixed' };
+  if (total >= -5) return { text: "Pile à l'équilibre ⚖️", variant: 'mixed' };
   if (total >= -20) return { text: 'Mitigé... 😬', variant: 'mixed' };
   if (total >= -35) return { text: 'Pas terrible ça 😕', variant: 'negative' };
   return { text: 'Combo raté 😅', variant: 'negative' };
 };
-import { generateBubblePosition } from '@/utils/bubbleUtils';
 
 const GAME_DURATION = 60;
 
@@ -62,33 +63,6 @@ const friends: Friend[] = [
   { id: 10, name: 'Matt', imageUrl: `${import.meta.env.BASE_URL}images/Matt.png`, points: -25 },
   { id: 11, name: 'Mel', imageUrl: `${import.meta.env.BASE_URL}images/Mel.png`, points: 35 },
   { id: 12, name: 'Steevens', imageUrl: `${import.meta.env.BASE_URL}images/Steevens.png`, points: -30 },
-];
-
-const MILESTONES = [
-  { threshold: 50,   message: "OK." },
-  { threshold: 100,  message: "Pas mal du tout ! 👍" },
-  { threshold: 250,  message: "Tu commences à cartonner ! 🔥" },
-  { threshold: 500,  message: "C'est chaud là ! 🚀" },
-  { threshold: 750,  message: "Impressionnant ! 🌟" },
-  { threshold: 1000, message: "T'es un monstre ! 💥" },
-  { threshold: 1500, message: "LÉGENDE. 👑" },
-  { threshold: 2000, message: "T'es pas humain... ⚡" },
-  { threshold: 2500, message: "ON EST PLUS DANS LE MÊME SPORT. 🤯" },
-  { threshold: 3000, message: "YOU'RE FUCKING GODLIKE. 👁️" },
-];
-
-// Classement de la honte : franchi vers le bas (score qui s'effondre)
-const NEGATIVE_MILESTONES = [
-  { threshold: -50,   message: "Nul. Bien naze. 👎" },
-  { threshold: -100,  message: "Vraiment pas doué... 🫤" },
-  { threshold: -250,  message: "C'est un talent d'être aussi mauvais 😬" },
-  { threshold: -500,  message: "Catastrophe ambulante 💀" },
-  { threshold: -750,  message: "Tu le fais exprès là ?! 🤡" },
-  { threshold: -1000, message: "Honte nationale 🚮" },
-  { threshold: -1500, message: "Sous-sol de l'humanité 👻" },
-  { threshold: -2000, message: "Cas d'école de nullité 📉" },
-  { threshold: -2500, message: "On étudiera ton cas en labo 🔬" },
-  { threshold: -3000, message: "LE PIRE HUMAIN DE L'HUMANITÉ. 🪦💩" },
 ];
 
 const getRandomSound = () => SOUND_URLS[Math.floor(Math.random() * SOUND_URLS.length)];
@@ -170,6 +144,8 @@ function App() {
   const lastWavePointsRef = useRef<number[]>([]);
   const ambientRef = useRef<AmbientMusic | null>(null);
   const mutedSfxRef = useRef(mutedSfx);
+  // Ref pour lire mutedMusic sans le mettre en dep des effects musique
+  const mutedMusicRef = useRef(mutedMusic);
   const waveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const comboTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const milestoneTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -178,30 +154,25 @@ function App() {
   const multiplierTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const goldRushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bonusToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ref stable vers les bulles courantes pour lecture synchrone (évite les effets de bord dans setBubbles)
+  const bubblesRef = useRef<BubbleData[]>([]);
 
   useEffect(() => { isPlayingRef.current = gameState.isPlaying; }, [gameState.isPlaying]);
-  useEffect(() => { currentScoreRef.current = gameState.score; }, [gameState.score]);
   useEffect(() => { mutedSfxRef.current = mutedSfx; }, [mutedSfx]);
+  useEffect(() => { mutedMusicRef.current = mutedMusic; }, [mutedMusic]);
+  // Tient bubblesRef à jour après chaque rendu
+  useEffect(() => { bubblesRef.current = bubbles; }, [bubbles]);
 
-  // Musique d'accueil
+  // Musique unifiée : home vs game selon isPlaying.
+  // mutedMusic est lu via mutedMusicRef pour éviter de recréer la musique à chaque toggle.
   useEffect(() => {
-    if (!gameState.isPlaying) {
-      ambientRef.current?.stop();
-      const music = createAmbientMusic('home');
-      ambientRef.current = music;
-      if (mutedMusic && music) music.setVolume(0);
-    }
-  }, [gameState.isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Musique en jeu
-  useEffect(() => {
-    if (gameState.isPlaying) {
-      ambientRef.current?.stop();
-      const music = createAmbientMusic('game');
-      ambientRef.current = music;
-      if (mutedMusic && music) music.setVolume(0);
-    }
-  }, [gameState.isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
+    ambientRef.current?.stop();
+    const music = createAmbientMusic(gameState.isPlaying ? 'game' : 'home');
+    ambientRef.current = music;
+    if (mutedMusicRef.current && music) music.setVolume(0);
+  }, [gameState.isPlaying]);
+  // mutedMusic intentionnellement hors deps - lu via mutedMusicRef pour éviter
+  // de recréer l'instance audio à chaque mute/unmute (géré par handleToggleMusic).
 
   const handleToggleMusic = () => {
     setMutedMusic(prev => {
@@ -286,17 +257,7 @@ function App() {
           if (!mutedSfxRef.current) playTickSound();
         }
         if (prev.timeLeft <= 1) {
-          clearInterval(timerInterval);
-          // Nettoyage bonus
-          scoreMultiplierRef.current = 1;
-          goldRushRef.current = false;
-          if (multiplierTimeoutRef.current) clearTimeout(multiplierTimeoutRef.current);
-          if (goldRushTimeoutRef.current) clearTimeout(goldRushTimeoutRef.current);
-          if (bonusToastTimeoutRef.current) clearTimeout(bonusToastTimeoutRef.current);
-          setMultiplierActive(false);
-          setGoldRushActive(false);
-          setBonusToast(null);
-          setSessionBest((best) => (best === null || prev.score > best ? prev.score : best));
+          // Updater pur : retourne uniquement le nouvel état, sans effets de bord
           return { ...prev, timeLeft: 0, isPlaying: false };
         }
         return { ...prev, timeLeft: prev.timeLeft - 1 };
@@ -311,6 +272,29 @@ function App() {
       if (bonusToastTimeoutRef.current) clearTimeout(bonusToastTimeoutRef.current);
     };
   }, [gameState.isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fin de partie : détecte la transition isPlaying=false + timeLeft=0.
+  // Les mutations de refs sont synchrones (ok dans effect).
+  // Les setState sont différés dans un microtask pour satisfaire react-hooks/set-state-in-effect
+  // et éviter les renders en cascade synchrones.
+  useEffect(() => {
+    if (!gameState.isPlaying && gameState.timeLeft === 0) {
+      // Mutations de refs : synchrones, pas de render
+      scoreMultiplierRef.current = 1;
+      goldRushRef.current = false;
+      if (multiplierTimeoutRef.current) clearTimeout(multiplierTimeoutRef.current);
+      if (goldRushTimeoutRef.current) clearTimeout(goldRushTimeoutRef.current);
+      if (bonusToastTimeoutRef.current) clearTimeout(bonusToastTimeoutRef.current);
+      // setState différés : React les batch ensemble, pas de cascade
+      const finalScore = gameState.score;
+      queueMicrotask(() => {
+        setMultiplierActive(false);
+        setGoldRushActive(false);
+        setBonusToast(null);
+        setSessionBest((best) => (best === null || finalScore > best ? finalScore : best));
+      });
+    }
+  }, [gameState.isPlaying, gameState.timeLeft, gameState.score]);
 
   const handlePop = (id: number, points: number, bonus?: BonusType) => {
     // ── Branche BONUS : traitement isolé, pas de scoring normal, pas de combo ──
@@ -336,38 +320,37 @@ function App() {
           break;
         }
         case 'megapop': {
-          // Capture les bulles normales (points != 0, pas bonus) au moment du clic
-          setBubbles((prev) => {
-            const normalBubbles = prev.filter((b) => b.bonus === undefined && b.points !== 0);
-            const sum = normalBubbles.reduce((acc, b) => acc + Math.abs(b.points), 0);
-            if (sum > 0) {
-              // Effets visuels pour chaque bulle explosée
-              normalBubbles.forEach((b) => {
-                const cx = b.position.x + b.position.size / 2;
-                const cy = b.position.y + b.position.size / 2;
-                playBubbleEffect(b.points, cx, cy);
-              });
-              // Mise à jour score + milestone
-              const prevScore = currentScoreRef.current;
-              const newScore = prevScore + sum;
-              currentScoreRef.current = newScore;
-              setGameState((gs) => ({ ...gs, score: gs.score + sum }));
-              // Vérification milestone positif (un seul palier)
-              const posIdx = MILESTONES.findIndex(
-                (m) => prevScore < m.threshold && newScore >= m.threshold
-              );
-              if (posIdx !== -1) {
-                const duration = posIdx >= 6 ? 2500 : posIdx >= 4 ? 2000 : 1500;
-                if (milestoneTimeoutRef.current) clearTimeout(milestoneTimeoutRef.current);
-                setMilestoneToast({ message: MILESTONES[posIdx].message, level: posIdx, kind: 'positive' });
-                playMilestoneConfetti(posIdx);
-                if (!mutedSfxRef.current) playMilestoneSound(posIdx);
-                milestoneTimeoutRef.current = setTimeout(() => setMilestoneToast(null), duration);
-              }
+          // Lit les bulles courantes via ref (hors updater - évite la double exécution StrictMode)
+          const currentBubbles = bubblesRef.current;
+          const normalBubbles = currentBubbles.filter((b) => b.bonus === undefined && b.points !== 0);
+          const sum = normalBubbles.reduce((acc, b) => acc + Math.abs(b.points), 0);
+          if (sum > 0) {
+            // Effets visuels pour chaque bulle explosée
+            normalBubbles.forEach((b) => {
+              const cx = b.position.x + b.position.size / 2;
+              const cy = b.position.y + b.position.size / 2;
+              playBubbleEffect(b.points, cx, cy);
+            });
+            // Mise à jour score + milestone
+            const prevScore = currentScoreRef.current;
+            const newScore = prevScore + sum;
+            currentScoreRef.current = newScore;
+            setGameState((gs) => ({ ...gs, score: gs.score + sum }));
+            // Vérification milestone positif (un seul palier)
+            const posIdx = MILESTONES.findIndex(
+              (m) => prevScore < m.threshold && newScore >= m.threshold
+            );
+            if (posIdx !== -1) {
+              const duration = posIdx >= 6 ? 2500 : posIdx >= 4 ? 2000 : 1500;
+              if (milestoneTimeoutRef.current) clearTimeout(milestoneTimeoutRef.current);
+              setMilestoneToast({ message: MILESTONES[posIdx].message, level: posIdx, kind: 'positive' });
+              playMilestoneConfetti(posIdx);
+              if (!mutedSfxRef.current) playMilestoneSound(posIdx);
+              milestoneTimeoutRef.current = setTimeout(() => setMilestoneToast(null), duration);
             }
-            // Retire toutes les bulles normales + la bulle bonus déjà retirée par le filtre id au-dessus
-            return prev.filter((b) => b.bonus !== undefined && b.id !== id);
-          });
+          }
+          // Retire toutes les bulles normales + la bulle bonus cliquée (updater pur)
+          setBubbles((prev) => prev.filter((b) => b.bonus !== undefined && b.id !== id));
           showBonusToast('💥 MÉGA-POP');
           break;
         }
@@ -398,6 +381,9 @@ function App() {
 
     const prevScore = currentScoreRef.current;
     const newScore = prevScore + effective;
+    // Mise à jour synchrone de la ref - évite le double-tap milestone (une frame de retard avec useEffect seul)
+    currentScoreRef.current = newScore;
+
     // Montée : palier de gloire ; descente : palier de honte (un seul franchi par pop)
     const posIndex = MILESTONES.findIndex(m => prevScore < m.threshold && newScore >= m.threshold);
     const negIndex = NEGATIVE_MILESTONES.findIndex(m => prevScore > m.threshold && newScore <= m.threshold);

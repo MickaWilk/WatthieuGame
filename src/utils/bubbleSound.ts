@@ -21,8 +21,7 @@ export const playBubbleSound = (url: string, volume = 0.5): void => {
   }
   active.push(audio);
 
-  audio.play().catch((e) => {
+  audio.play().catch(() => {
     cleanup();
-    console.log('Audio play failed:', e);
   });
 };

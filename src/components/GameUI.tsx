@@ -1,5 +1,6 @@
 import React from 'react';
 import { Music, Timer, Volume2, VolumeX } from 'lucide-react';
+import { MILESTONES_THRESHOLDS, MAX_SCORE } from '@/utils/milestones';
 
 interface GameUIProps {
   score: number;
@@ -9,9 +10,6 @@ interface GameUIProps {
   onToggleMusic: () => void;
   onToggleSfx: () => void;
 }
-
-const MILESTONES_THRESHOLDS = [50, 100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000];
-const MAX_SCORE = 3000;
 
 export const GameUI: React.FC<GameUIProps> = ({ score, timeLeft, mutedMusic, mutedSfx, onToggleMusic, onToggleSfx }) => {
   const isUrgent = timeLeft <= 10;

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { BubbleData, BonusType } from '@/types';
 import { playBubbleEffect, playBonusSound } from '@/utils/effects';
@@ -31,11 +31,13 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSf
     onPop(friend.id, friend.points);
   };
 
-  // 4 vecteurs indépendants : x et y varient librement dans toutes les directions
-  const kf = useMemo(() => Array.from({ length: 4 }, () => ({
+  // 4 vecteurs indépendants figés au montage.
+  // useState avec initialiseur lazy : la fonction n'est appelée qu'une seule fois, le résultat
+  // est stable et lisible directement pendant le render (contrairement à useRef.current).
+  const [kf] = useState(() => Array.from({ length: 4 }, () => ({
     x: (Math.random() * 2 - 1),
     y: (Math.random() * 2 - 1),
-  })), []);
+  })));
 
   const { glowEffect, scoreClass } = getBubbleStyles(friend.points);
 
@@ -59,9 +61,8 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSf
   const bonusGlow = 'drop-shadow(0 0 14px #fbbf24) drop-shadow(0 0 28px #f59e0b)';
 
   return (
-    <>
-      {/* Wrapper externe : gère le scale hover, séparé de l'animation float */}
-      <div
+    /* Wrapper externe : gère le scale hover, séparé de l'animation float */
+    <div
         style={{
           position: 'absolute',
           left: `${position.x}px`,
@@ -125,7 +126,6 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSf
             {isBonus ? '?' : friend.name}
           </div>
         </div>
-      </div>
-    </>
+    </div>
   );
 };
