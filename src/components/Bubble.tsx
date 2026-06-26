@@ -44,15 +44,17 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSf
 
   const isBonus = Boolean(friend.bonus);
 
-  // Pendant le gold rush, les bulles d'amis passent toutes au vert
+  // Pendant le gold rush, les bulles d'amis passent toutes au doré/ambre
   const goldRushOverride = goldRush && !isBonus;
 
-  const gradientColors = goldRushOverride || friend.points >= 0
-    ? 'from-green-300 via-green-500 to-green-700'
-    : 'from-red-300 via-red-500 to-red-700';
+  const gradientColors = goldRushOverride
+    ? 'from-amber-300 via-amber-500 to-yellow-600'
+    : friend.points >= 0
+      ? 'from-green-300 via-green-500 to-green-700'
+      : 'from-red-300 via-red-500 to-red-700';
 
-  const glowEffect = goldRushOverride ? 'drop-shadow(0 0 12px #00ff00)' : baseGlowEffect;
-  const scoreClass = goldRushOverride ? 'bg-green-500' : baseScoreClass;
+  const glowEffect = goldRushOverride ? 'drop-shadow(0 0 12px #f59e0b)' : baseGlowEffect;
+  const scoreClass = goldRushOverride ? 'bg-amber-500' : baseScoreClass;
 
   const bubbleVars = {
     '--kx1': `${position.xAmplitude * kf[0].x}px`,
@@ -110,7 +112,7 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSf
               />
             </div>
           ) : (
-            <div className={`w-full h-full rounded-full p-1 bg-linear-to-br ${gradientColors} ring-2 ring-white/30`}>
+            <div className={`w-full h-full rounded-full p-1 bg-linear-to-br ${gradientColors} ${goldRushOverride ? 'ring-2 ring-amber-300' : 'ring-2 ring-white/30'}`}>
               <div className={`absolute -top-2 -right-2 ${scoreClass} text-white rounded-full px-2 py-1 text-sm font-bold shadow-lg z-10`}>
                 {goldRushOverride ? `+${Math.abs(friend.points)}` : (friend.points > 0 ? `+${friend.points}` : friend.points)}
               </div>
@@ -120,6 +122,12 @@ export const Bubble: React.FC<BubbleProps> = ({ friend, position, onPop, mutedSf
                 className="w-full h-full rounded-full object-cover"
                 draggable={false}
               />
+              {goldRushOverride && (
+                <div
+                  className="absolute inset-0 rounded-full pointer-events-none"
+                  style={{ background: 'radial-gradient(circle at 35% 35%, #fde68a, #f59e0b 70%, #b45309)', mixBlendMode: 'color' }}
+                />
+              )}
             </div>
           )}
           {/* Nom visible en bas de la bulle (bonus : "BONUS ?" pour préserver la surprise) */}
